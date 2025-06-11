@@ -4,28 +4,33 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import { getProducts, getCategories } from '@/lib/api';
 
 export async function generateStaticParams() {
-  const categories = await getCategories();
-  const paths = [];
-  
-  // Generate paths for all categories and subcategories
-  function extractPaths(cats) {
-    cats.forEach(cat => {
-      paths.push({ slug: cat.slug });
-      if (cat.children && cat.children.length > 0) {
-        extractPaths(cat.children);
-      }
-    });
+  try {
+    const categories = await getCategories();
+    const paths = [];
+    
+    // Generate paths for all categories and subcategories
+    function extractPaths(cats) {
+      cats.forEach(cat => {
+        paths.push({ slug: cat.slug });
+        if (cat.children && cat.children.length > 0) {
+          extractPaths(cat.children);
+        }
+      });
+    }
+    
+    if (categories) {
+      extractPaths(categories);
+    }
+    
+    return paths;
+  } catch (error) {
+    console.error('Error generating static params:', error);
+    return [];
   }
-  
-  if (categories) {
-    extractPaths(categories);
-  }
-  
-  return paths;
 }
 
 export default async function CategoryPage({ params }) {
-  const { slug } = params;
+  const { slug } = await params;
   
   // Fetch products for this category
   const productsData = await getProducts({ category: slug });
