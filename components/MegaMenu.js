@@ -310,7 +310,7 @@ export default function MegaMenu({ isMobile = false }) {
                     </h3>
                     <div className="space-y-2">
                       <Link href="/offers" className="block text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors py-1" onClick={handleLinkClick}>
-                        🏷️ Today's Offers
+                        🏷️ Today&apos;s Offers
                       </Link>
                       <Link href="/new-arrivals" className="block text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors py-1" onClick={handleLinkClick}>
                         ✨ New Arrivals
