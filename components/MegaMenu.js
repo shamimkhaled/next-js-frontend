@@ -42,10 +42,41 @@ export default function MegaMenu({ isMobile = false }) {
 
   const fetchCategories = async () => {
     try {
-      const data = await getCategories();
-      setCategories(data || []);
+      const response = await getCategories();
+      console.log('API Response:', response); // Debug log
+      
+      // Handle different possible response structures
+      let categoriesData = [];
+      
+      // If response is already an array
+      if (Array.isArray(response)) {
+        categoriesData = response;
+      }
+      // If response has a data property that is an array
+      else if (response && response.data && Array.isArray(response.data)) {
+        categoriesData = response.data;
+      }
+      // If response has categories property
+      else if (response && response.categories && Array.isArray(response.categories)) {
+        categoriesData = response.categories;
+      }
+      // If response is an object with numeric keys (PHP style)
+      else if (response && typeof response === 'object') {
+        categoriesData = Object.values(response);
+      }
+      
+      console.log('Processed categories:', categoriesData); // Debug log
+      
+      // Ensure we have valid category objects
+      const validCategories = categoriesData.filter(cat => 
+        cat && typeof cat === 'object' && cat.name
+      );
+      
+      console.log('Valid categories:', validCategories); // Debug log
+      setCategories(validCategories);
     } catch (error) {
       console.error('Failed to fetch categories:', error);
+      setCategories([]); // Ensure empty array on error
     } finally {
       setLoading(false);
     }
@@ -84,6 +115,16 @@ export default function MegaMenu({ isMobile = false }) {
   const handleLinkClick = () => {
     setIsOpen(false);
     setExpandedCategories({});
+  };
+
+  // Helper function to check if a category is top-level
+  const isTopLevelCategory = (category) => {
+    return !category.parent && !category.parent_id && category.parent !== 0 && category.parent_id !== 0;
+  };
+
+  // Helper function to get filtered top-level categories
+  const getTopLevelCategories = () => {
+    return categories.filter(cat => isTopLevelCategory(cat));
   };
 
   const renderMobileCategory = (category, level = 0) => {
@@ -200,6 +241,10 @@ export default function MegaMenu({ isMobile = false }) {
     );
   };
 
+  // Get top-level categories for rendering
+  const topLevelCategories = getTopLevelCategories();
+  console.log('Top level categories:', topLevelCategories); // Debug log
+
   // Mobile version
   if (isMobile) {
     return (
@@ -232,7 +277,13 @@ export default function MegaMenu({ isMobile = false }) {
             ) : (
               <>
                 <div className="py-2">
-                  {categories.filter(cat => cat.parent === null).map((category) => renderMobileCategory(category))}
+                  {topLevelCategories.length > 0 ? (
+                    topLevelCategories.map((category) => renderMobileCategory(category))
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      No categories available
+                    </div>
+                  )}
                 </div>
                 
                 {/* Quick Links for Mobile */}
@@ -301,7 +352,13 @@ export default function MegaMenu({ isMobile = false }) {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                  {categories.filter(cat => cat.parent === null).map((category) => renderDesktopCategory(category))}
+                  {topLevelCategories.length > 0 ? (
+                    topLevelCategories.map((category) => renderDesktopCategory(category))
+                  ) : (
+                    <div className="col-span-full text-center py-8 text-gray-500">
+                      No categories available
+                    </div>
+                  )}
                   
                   {/* Quick Links Section */}
                   <div className="lg:col-span-1">
