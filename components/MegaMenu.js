@@ -4,6 +4,78 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { getCategories } from '@/lib/api';
 
+// Mobile Category Component - Moved outside to follow React rules
+function MobileCategoryItem({ category, level = 0, onClose }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  return (
+    <div className={`${level > 0 ? 'ml-4' : ''}`}>
+      <div className="flex items-center justify-between py-2">
+        <Link 
+          href={`/category/${category.slug}`}
+          className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors flex-1"
+          onClick={onClose}
+        >
+          <span className="text-xl">{getCategoryIcon(category.name)}</span>
+          <span className={`${level === 0 ? 'font-semibold' : ''}`}>{category.name}</span>
+          {category.product_count > 0 && (
+            <span className="text-xs bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-300 px-2 py-0.5 rounded-full ml-2">
+              {category.product_count}
+            </span>
+          )}
+        </Link>
+        {category.children && category.children.length > 0 && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="p-2 text-gray-500 hover:text-orange-500"
+          >
+            <svg className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        )}
+      </div>
+      
+      {isExpanded && category.children && (
+        <div className="border-l-2 border-gray-200 dark:border-gray-700 ml-2 pl-2">
+          {category.children.map(child => (
+            <MobileCategoryItem 
+              key={child.id}
+              category={child}
+              level={level + 1}
+              onClose={onClose}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Helper function for category icons
+function getCategoryIcon(categoryName) {
+  const icons = {
+    'Indian Cuisine': '🍛',
+    'Chinese Cuisine': '🥢',
+    'Italian Cuisine': '🍝',
+    'Fast Food': '🍔',
+    'Beverages': '🥤',
+    'Desserts': '🍰',
+    'Curries': '🍛',
+    'Biryanis & Rice': '🍚',
+    'Indian Breads': '🫓',
+    'Indian Starters': '🥟',
+    'Noodles': '🍜',
+    'Rice Dishes': '🍚',
+    'Chinese Starters': '🥟',
+    'Pizzas': '🍕',
+    'Pastas': '🍝',
+    'Burgers': '🍔',
+    'Sandwiches & Wraps': '🥪'
+  };
+  return icons[categoryName] || '🍴';
+}
+
 export default function MegaMenu() {
   const [categories, setCategories] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -62,69 +134,6 @@ export default function MegaMenu() {
         setIsOpen(false);
       }, 300); // 300ms delay before closing
     }
-  };
-
-  const getCategoryIcon = (categoryName) => {
-    const icons = {
-      'Indian Cuisine': '🍛',
-      'Chinese Cuisine': '🥢',
-      'Italian Cuisine': '🍝',
-      'Fast Food': '🍔',
-      'Beverages': '🥤',
-      'Desserts': '🍰',
-      'Curries': '🍛',
-      'Biryanis & Rice': '🍚',
-      'Indian Breads': '🫓',
-      'Indian Starters': '🥟',
-      'Noodles': '🍜',
-      'Rice Dishes': '🍚',
-      'Chinese Starters': '🥟',
-      'Pizzas': '🍕',
-      'Pastas': '🍝',
-      'Burgers': '🍔',
-      'Sandwiches & Wraps': '🥪'
-    };
-    return icons[categoryName] || '🍴';
-  };
-
-  const renderMobileCategory = (category, level = 0) => {
-    const [isExpanded, setIsExpanded] = useState(false);
-    
-    return (
-      <div key={category.id} className={`${level > 0 ? 'ml-4' : ''}`}>
-        <div className="flex items-center justify-between py-2">
-          <Link 
-            href={`/category/${category.slug}`}
-            className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors flex-1"
-            onClick={() => setIsOpen(false)}
-          >
-            <span className="text-xl">{getCategoryIcon(category.name)}</span>
-            <span className={`${level === 0 ? 'font-semibold' : ''}`}>{category.name}</span>
-            {category.product_count > 0 && (
-              <span className="text-xs bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-300 px-2 py-0.5 rounded-full ml-2">
-                {category.product_count}
-              </span>
-            )}
-          </Link>
-          {category.children && category.children.length > 0 && (
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="p-2 text-gray-500 hover:text-orange-500"
-            >
-              <svg className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          )}
-        </div>
-        
-        {isExpanded && category.children && (
-          <div className="border-l-2 border-gray-200 dark:border-gray-700 ml-2 pl-2">
-            {category.children.map(child => renderMobileCategory(child, level + 1))}
-          </div>
-        )}
-      </div>
-    );
   };
 
   const renderDesktopCategory = (category) => {
@@ -198,7 +207,7 @@ export default function MegaMenu() {
                 {/* Quick Links for Mobile */}
                 <div className="border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
                   <Link href="/offers" className="flex items-center gap-2 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-500" onClick={() => setIsOpen(false)}>
-                    <span>🏷️</span> Today's Offers
+                    <span>🏷️</span> Today&apos;s Offers
                   </Link>
                   <Link href="/new-arrivals" className="flex items-center gap-2 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-500" onClick={() => setIsOpen(false)}>
                     <span>✨</span> New Arrivals
@@ -209,7 +218,13 @@ export default function MegaMenu() {
                 </div>
                 
                 {/* Categories */}
-                {categories.filter(cat => cat.parent === null).map(category => renderMobileCategory(category))}
+                {categories.filter(cat => cat.parent === null).map(category => (
+                  <MobileCategoryItem 
+                    key={category.id}
+                    category={category}
+                    onClose={() => setIsOpen(false)}
+                  />
+                ))}
               </div>
             )}
           </div>
@@ -239,7 +254,7 @@ export default function MegaMenu() {
                   </h3>
                   <div className="space-y-2">
                     <Link href="/offers" className="block text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors py-1" onClick={() => setIsOpen(false)}>
-                      🏷️ Today's Offers
+                      🏷️ Today&apos;s Offers
                     </Link>
                     <Link href="/new-arrivals" className="block text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors py-1" onClick={() => setIsOpen(false)}>
                       ✨ New Arrivals
