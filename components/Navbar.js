@@ -2,47 +2,50 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import CartIcon from './CartIcon';
 import MegaMenu from './MegaMenu';
+import CartIcon from './CartIcon';
 
 export default function Navbar() {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <nav className="sticky top-0 z-50 bg-white dark:bg-gray-900 shadow-lg">
+    <nav className="bg-white dark:bg-gray-900 shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 text-2xl font-bold text-orange-500 hover:text-orange-600 transition-colors">
+          <Link href="/" className="flex items-center gap-2 text-2xl font-bold text-orange-500">
             <span>🍛</span>
             <span className="hidden sm:inline">FoodDelivery</span>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-6">
+          <div className="hidden lg:flex items-center gap-4">
             <MegaMenu />
-            <Link href="/menu" className="text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium">
+            <Link href="/menu" className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium">
               Menu
             </Link>
-            <Link href="/offers" className="text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium">
+            <Link href="/offers" className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium">
               Offers
             </Link>
-            <Link href="/about" className="text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium">
+            <Link href="/about" className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium">
               About
             </Link>
-            <Link href="/contact" className="text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium">
+            <Link href="/contact" className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium">
               Contact
             </Link>
           </div>
 
           {/* Right Side Icons */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             {/* Search Icon */}
             <button className="p-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </button>
+
+            {/* Cart Icon */}
+            <CartIcon />
 
             {/* User Icon */}
             <Link href="/account" className="p-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors">
@@ -51,15 +54,12 @@ export default function Navbar() {
               </svg>
             </Link>
 
-            {/* Cart Icon */}
-            <CartIcon />
-
             {/* Mobile Menu Toggle */}
             <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors"
             >
-              {isMobileMenuOpen ? (
+              {mobileMenuOpen ? (
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -73,35 +73,35 @@ export default function Navbar() {
         </div>
 
         {/* Mobile Menu */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden py-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex flex-col space-y-4">
-              <MegaMenu />
+        {mobileMenuOpen && (
+          <div className="lg:hidden border-t border-gray-200 dark:border-gray-700 py-4">
+            <div className="flex flex-col space-y-2">
+              <MegaMenu isMobile={true} />
               <Link 
                 href="/menu" 
-                className="text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium px-4 py-2"
-                onClick={() => setIsMobileMenuOpen(false)}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
+                onClick={() => setMobileMenuOpen(false)}
               >
                 Menu
               </Link>
               <Link 
                 href="/offers" 
-                className="text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium px-4 py-2"
-                onClick={() => setIsMobileMenuOpen(false)}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
+                onClick={() => setMobileMenuOpen(false)}
               >
                 Offers
               </Link>
               <Link 
                 href="/about" 
-                className="text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium px-4 py-2"
-                onClick={() => setIsMobileMenuOpen(false)}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
+                onClick={() => setMobileMenuOpen(false)}
               >
                 About
               </Link>
               <Link 
                 href="/contact" 
-                className="text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium px-4 py-2"
-                onClick={() => setIsMobileMenuOpen(false)}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
+                onClick={() => setMobileMenuOpen(false)}
               >
                 Contact
               </Link>
