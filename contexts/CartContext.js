@@ -6,19 +6,38 @@ export const CartContext = createContext();
 
 export function CartProvider({ children }) {
   const [cartItems, setCartItems] = useState([]);
+  const [isClient, setIsClient] = useState(false);
 
-  // Load cart from localStorage on mount
+  // Set isClient to true after mount
   useEffect(() => {
-    const savedCart = localStorage.getItem('cart');
-    if (savedCart) {
-      setCartItems(JSON.parse(savedCart));
-    }
+    setIsClient(true);
   }, []);
 
-  // Save cart to localStorage whenever it changes
+  // Load cart from localStorage on mount (client-side only)
   useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(cartItems));
-  }, [cartItems]);
+    if (isClient && typeof window !== 'undefined') {
+      const savedCart = localStorage.getItem('cart');
+      if (savedCart) {
+        try {
+          setCartItems(JSON.parse(savedCart));
+        } catch (error) {
+          console.error('Error loading cart from localStorage:', error);
+          localStorage.removeItem('cart');
+        }
+      }
+    }
+  }, [isClient]);
+
+  // Save cart to localStorage whenever it changes (client-side only)
+  useEffect(() => {
+    if (isClient && typeof window !== 'undefined' && cartItems.length > 0) {
+      try {
+        localStorage.setItem('cart', JSON.stringify(cartItems));
+      } catch (error) {
+        console.error('Error saving cart to localStorage:', error);
+      }
+    }
+  }, [cartItems, isClient]);
 
   const addToCart = (product, quantity = 1) => {
     setCartItems(prevItems => {
@@ -57,6 +76,9 @@ export function CartProvider({ children }) {
 
   const clearCart = () => {
     setCartItems([]);
+    if (isClient && typeof window !== 'undefined') {
+      localStorage.removeItem('cart');
+    }
   };
 
   const getCartTotal = () => {

@@ -2,20 +2,18 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { getCategories } from '@/lib/api';
+// REMOVED: import { getCategories } from '@/lib/api';
 
-export default function MegaMenu({ isMobile = false }) {
-  const [categories, setCategories] = useState([]);
+export default function MegaMenu({ isMobile = false, categories = [] }) {  // NOW RECEIVES CATEGORIES AS PROPS
   const [isOpen, setIsOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [expandedCategories, setExpandedCategories] = useState({});
   const menuRef = useRef(null);
   const buttonRef = useRef(null);
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
+  // REMOVED: useEffect that fetches categories
+  // REMOVED: loading state
+  // REMOVED: error state
+  // REMOVED: fetchCategories function
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -40,56 +38,6 @@ export default function MegaMenu({ isMobile = false }) {
       document.removeEventListener('touchstart', handleClickOutside);
     };
   }, [isOpen]);
-
-  const fetchCategories = async () => {
-    try {
-      setError(null);
-      const response = await getCategories();
-      
-      // Debug logging for production
-      if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-        console.log('Production API Response received');
-      }
-      
-      // Handle different possible response structures
-      let categoriesData = [];
-      
-      // If response is already an array
-      if (Array.isArray(response)) {
-        categoriesData = response;
-      }
-      // If response has a data property that is an array
-      else if (response && response.data && Array.isArray(response.data)) {
-        categoriesData = response.data;
-      }
-      // If response has categories property
-      else if (response && response.categories && Array.isArray(response.categories)) {
-        categoriesData = response.categories;
-      }
-      // If response is an object with numeric keys (PHP style)
-      else if (response && typeof response === 'object') {
-        categoriesData = Object.values(response);
-      }
-      
-      // Ensure we have valid category objects
-      const validCategories = categoriesData.filter(cat => 
-        cat && typeof cat === 'object' && cat.name
-      );
-      
-      setCategories(validCategories);
-      
-      // Log if no categories found
-      if (validCategories.length === 0) {
-        console.warn('No valid categories found in response');
-      }
-    } catch (error) {
-      console.error('Failed to fetch categories:', error);
-      setError(error.message || 'Failed to load categories');
-      setCategories([]); // Ensure empty array on error
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getCategoryIcon = (categoryName) => {
     const icons = {
@@ -313,52 +261,35 @@ export default function MegaMenu({ isMobile = false }) {
             ref={menuRef}
             className="mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-h-[70vh] overflow-y-auto"
           >
-            {loading ? (
-              <div className="flex justify-center items-center h-32">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-orange-500"></div>
-              </div>
-            ) : error ? (
-              <div className="p-8 text-center">
-                <p className="text-red-500 dark:text-red-400 mb-2">Failed to load categories</p>
-                <button 
-                  onClick={fetchCategories}
-                  className="text-sm text-orange-500 hover:text-orange-600 underline"
-                >
-                  Try again
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="py-2">
-                  {topLevelCategories.length > 0 ? (
-                    topLevelCategories.map((category) => renderMobileCategory(category))
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      No categories available
-                    </div>
-                  )}
+            {/* REMOVED: Loading state - categories are now passed as props */}
+            <div className="py-2">
+              {topLevelCategories.length > 0 ? (
+                topLevelCategories.map((category) => renderMobileCategory(category))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  No categories available
                 </div>
-                
-                {/* Quick Links for Mobile */}
-                <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900">
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-3">Quick Links</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Link href="/offers" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 p-2 rounded hover:bg-white dark:hover:bg-gray-800" onClick={handleLinkClick}>
-                      <span>🏷️</span> Offers
-                    </Link>
-                    <Link href="/new-arrivals" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 p-2 rounded hover:bg-white dark:hover:bg-gray-800" onClick={handleLinkClick}>
-                      <span>✨</span> New
-                    </Link>
-                    <Link href="/best-sellers" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 p-2 rounded hover:bg-white dark:hover:bg-gray-800" onClick={handleLinkClick}>
-                      <span>🔥</span> Popular
-                    </Link>
-                    <Link href="/combo-meals" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 p-2 rounded hover:bg-white dark:hover:bg-gray-800" onClick={handleLinkClick}>
-                      <span>🍱</span> Combos
-                    </Link>
-                  </div>
-                </div>
-              </>
-            )}
+              )}
+            </div>
+            
+            {/* Quick Links for Mobile */}
+            <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900">
+              <h3 className="font-semibold text-gray-800 dark:text-white mb-3">Quick Links</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <Link href="/offers" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 p-2 rounded hover:bg-white dark:hover:bg-gray-800" onClick={handleLinkClick}>
+                  <span>🏷️</span> Offers
+                </Link>
+                <Link href="/new-arrivals" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 p-2 rounded hover:bg-white dark:hover:bg-gray-800" onClick={handleLinkClick}>
+                  <span>✨</span> New
+                </Link>
+                <Link href="/best-sellers" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 p-2 rounded hover:bg-white dark:hover:bg-gray-800" onClick={handleLinkClick}>
+                  <span>🔥</span> Popular
+                </Link>
+                <Link href="/combo-meals" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 p-2 rounded hover:bg-white dark:hover:bg-gray-800" onClick={handleLinkClick}>
+                  <span>🍱</span> Combos
+                </Link>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -399,31 +330,16 @@ export default function MegaMenu({ isMobile = false }) {
             onMouseLeave={() => !isMobile && setIsOpen(false)}
           >
             <div className="container mx-auto px-4 py-8 max-h-[80vh] overflow-y-auto">
-              {loading ? (
-                <div className="flex justify-center items-center h-40">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-orange-500"></div>
-                </div>
-              ) : error ? (
-                <div className="text-center py-12">
-                  <p className="text-red-500 dark:text-red-400 text-lg mb-4">Failed to load categories</p>
-                  <button 
-                    onClick={fetchCategories}
-                    className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-                  >
-                    Try again
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                  {topLevelCategories.length > 0 ? (
-                    topLevelCategories.map((category) => renderDesktopCategory(category))
-                  ) : (
-                    <div className="col-span-full text-center py-12 text-gray-500">
-                      No categories available
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* REMOVED: Loading state */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                {topLevelCategories.length > 0 ? (
+                  topLevelCategories.map((category) => renderDesktopCategory(category))
+                ) : (
+                  <div className="col-span-full text-center py-12 text-gray-500">
+                    No categories available
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </>

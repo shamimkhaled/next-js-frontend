@@ -5,7 +5,7 @@ import Link from 'next/link';
 import MegaMenu from './MegaMenu';
 import CartIcon from './CartIcon';
 
-export default function Navbar() {
+export default function Navbar({ categories = [] }) {  // ADDED: categories prop
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -20,7 +20,7 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center gap-4">
-            <MegaMenu />
+            <MegaMenu categories={categories} />  {/* ADDED: pass categories */}
             <Link href="/menu" className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium">
               Menu
             </Link>
@@ -76,7 +76,7 @@ export default function Navbar() {
         {mobileMenuOpen && (
           <div className="lg:hidden border-t border-gray-200 dark:border-gray-700 py-4">
             <div className="flex flex-col space-y-2">
-              <MegaMenu isMobile={true} />
+              <MegaMenu isMobile={true} categories={categories} />  {/* ADDED: pass categories */}
               <Link 
                 href="/menu" 
                 className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
