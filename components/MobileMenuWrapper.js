@@ -1,3 +1,4 @@
+// components/MobileMenuWrapper.js - CLEAN VERSION
 'use client';
 
 import { useState } from 'react';
