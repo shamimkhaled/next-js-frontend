@@ -1,11 +1,10 @@
-// components/MobileMenuWrapper.js
 'use client';
 
 import { useState } from 'react';
 import Link from 'next/link';
 import MegaMenu from './MegaMenu';
 
-export default function MobileMenuWrapper({ categories = [] }) {
+export default function MobileMenuWrapper({ categories = [], loading = false }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleMobileMenuToggle = () => {
@@ -65,6 +64,7 @@ export default function MobileMenuWrapper({ categories = [] }) {
               <MegaMenu 
                 isMobile={true} 
                 categories={categories} 
+                loading={loading}
                 onClose={closeMobileMenu} 
               />
               

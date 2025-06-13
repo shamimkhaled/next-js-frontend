@@ -1,39 +1,39 @@
-// components/Navbar.js
-// ⚠️ IMPORTANT: NO 'use client' directive - This is a SERVER component!
-// ⚠️ NO useState, NO useEffect, NO client-side code!
+'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import MegaMenu from './MegaMenu';
 import CartIcon from './CartIcon';
 import MobileMenuWrapper from './MobileMenuWrapper';
-import { getCategories } from '@/lib/api';
 
-export default async function Navbar() {
-  // Fetch categories on the server - runs on EVERY request
-  let categories = [];
-  
-  try {
-    const response = await getCategories();
-    
-    // Since your API returns an array with Food & Beverages as parent
-    if (Array.isArray(response)) {
-      categories = response;
-    } else if (response?.data && Array.isArray(response.data)) {
-      categories = response.data;
-    } else if (response?.categories && Array.isArray(response.categories)) {
-      categories = response.categories;
-    } else if (response?.results && Array.isArray(response.results)) {
-      categories = response.results;
+export default function Navbar() {
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'https://seashell-app-4gkvz.ondigitalocean.app/api'}/categories/tree/`
+        );
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch categories');
+        }
+        
+        const data = await response.json();
+        console.log('Navbar: Categories fetched:', data);
+        setCategories(data);
+      } catch (error) {
+        console.error('Navbar: Error fetching categories:', error);
+        setCategories([]);
+      } finally {
+        setLoading(false);
+      }
     }
-    
-    console.log(`✅ Navbar: Fetched ${categories.length} categories from database`);
-    if (categories.length > 0 && categories[0].children) {
-      console.log(`✅ Found ${categories[0].children.length} main categories under ${categories[0].name}`);
-    }
-  } catch (error) {
-    console.error('❌ Navbar: Failed to fetch categories:', error);
-    categories = [];
-  }
+
+    fetchCategories();
+  }, []);
 
   return (
     <nav className="bg-white dark:bg-gray-900 shadow-lg sticky top-0 z-50">
@@ -47,8 +47,8 @@ export default async function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center gap-4">
-            {/* Pass dynamic categories to MegaMenu */}
-            <MegaMenu categories={categories} />
+            {/* Dynamic Mega Menu */}
+            <MegaMenu categories={categories} loading={loading} />
             
             <Link href="/menu" className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium">
               Menu
@@ -73,7 +73,7 @@ export default async function Navbar() {
               </svg>
             </button>
 
-            {/* Cart Icon - Client component for cart functionality */}
+            {/* Cart Icon */}
             <CartIcon />
 
             {/* User Icon */}
@@ -83,8 +83,8 @@ export default async function Navbar() {
               </svg>
             </Link>
 
-            {/* Mobile Menu Wrapper - Client component for mobile menu state */}
-            <MobileMenuWrapper categories={categories} />
+            {/* Mobile Menu */}
+            <MobileMenuWrapper categories={categories} loading={loading} />
           </div>
         </div>
       </div>
