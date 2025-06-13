@@ -2,18 +2,20 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-// REMOVED: import { getCategories } from '@/lib/api';
+import { getCategories } from '@/lib/api';
 
-export default function MegaMenu({ isMobile = false, categories = [] }) {  // NOW RECEIVES CATEGORIES AS PROPS
+export default function MegaMenu({ isMobile = false }) {
+  const [categories, setCategories] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [expandedCategories, setExpandedCategories] = useState({});
   const menuRef = useRef(null);
   const buttonRef = useRef(null);
+  const timeoutRef = useRef(null);
 
-  // REMOVED: useEffect that fetches categories
-  // REMOVED: loading state
-  // REMOVED: error state
-  // REMOVED: fetchCategories function
+  useEffect(() => {
+    fetchCategories();
+  }, []);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -39,29 +41,77 @@ export default function MegaMenu({ isMobile = false, categories = [] }) {  // NO
     };
   }, [isOpen]);
 
-  const getCategoryIcon = (categoryName) => {
-    const icons = {
-      'Pizza': '🍕',
-      'Burger': '🍔',
-      'Sushi': '🍣',
-      'Pasta': '🍝',
-      'Salad': '🥗',
-      'Dessert': '🍰',
-      'Drinks': '🥤',
-      'Coffee': '☕',
-      'Indian': '🍛',
-      'Chinese': '🥡',
-      'Mexican': '🌮',
-      'Thai': '🍜',
-      'Healthy': '🥗',
-      'Breakfast': '🥞',
-      'default': '🍴'
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
     };
-    
-    return icons[categoryName] || icons['default'];
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await getCategories();
+      console.log('Raw API Response:', response);
+      
+      // Since the API endpoint is /categories/tree/, it likely returns the tree structure directly
+      if (Array.isArray(response)) {
+        setCategories(response);
+      } else if (response && typeof response === 'object') {
+        // If it's wrapped in an object, try common property names
+        const data = response.data || response.results || response.categories || response;
+        if (Array.isArray(data)) {
+          setCategories(data);
+        } else {
+          console.error('Unexpected response format:', response);
+          setCategories([]);
+        }
+      } else {
+        console.error('Invalid response format:', response);
+        setCategories([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch categories:', error);
+      setCategories([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const toggleMobileCategory = (categoryId) => {
+  const getCategoryIcon = (categoryName) => {
+    const icons = {
+      'Indian Cuisine': '🍛',
+      'Chinese Cuisine': '🥢',
+      'Italian Cuisine': '🍝',
+      'Fast Food': '🍔',
+      'Beverages': '🥤',
+      'Desserts': '🍰',
+      'Curries': '🍛',
+      'Biryanis & Rice': '🍚',
+      'Indian Breads': '🫓',
+      'Indian Starters': '🥟',
+      'Noodles': '🍜',
+      'Rice Dishes': '🍚',
+      'Chinese Starters': '🥟',
+      'Pizzas': '🍕',
+      'Pastas': '🍝',
+      'Burgers': '🍔',
+      'Sandwiches & Wraps': '🥪',
+      'Salads': '🥗',
+      'Soups': '🍲',
+      'Seafood': '🦐',
+      'Vegetarian': '🥬',
+      'Vegan': '🌱',
+      'Grills': '🍖',
+      'BBQ': '🍗',
+      'Breakfast': '🍳',
+      'Snacks': '🍿'
+    };
+    return icons[categoryName] || '🍴';
+  };
+
+  const toggleCategory = (categoryId) => {
     setExpandedCategories(prev => ({
       ...prev,
       [categoryId]: !prev[categoryId]
@@ -73,92 +123,84 @@ export default function MegaMenu({ isMobile = false, categories = [] }) {  // NO
     setExpandedCategories({});
   };
 
-  // Build hierarchical structure from flat array if needed
-  const buildCategoryTree = (flatCategories) => {
-    const categoryMap = {};
-    const rootCategories = [];
-    
-    // First pass: create map of all categories
-    flatCategories.forEach(cat => {
-      categoryMap[cat.id] = { ...cat, children: [] };
-    });
-    
-    // Second pass: build tree structure
-    flatCategories.forEach(cat => {
-      if (cat.parent_id && categoryMap[cat.parent_id]) {
-        categoryMap[cat.parent_id].children.push(categoryMap[cat.id]);
-      } else {
-        rootCategories.push(categoryMap[cat.id]);
+  const handleMouseEnter = () => {
+    if (!isMobile) {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
       }
-    });
-    
-    return rootCategories;
-  };
-
-  // Get top-level categories for rendering
-  const getTopLevelCategories = () => {
-    if (!categories || categories.length === 0) return [];
-    
-    // If categories already have children property, they're hierarchical
-    if (categories.some(cat => cat.children)) {
-      return categories.filter(cat => !cat.parent_id || cat.parent_id === null);
+      setIsOpen(true);
     }
-    
-    // Otherwise, build the tree
-    return buildCategoryTree(categories);
   };
 
-  const renderMobileCategory = (category) => {
-    const hasChildren = category.children && category.children.length > 0;
-    const isExpanded = expandedCategories[category.id];
+  const handleMouseLeave = () => {
+    if (!isMobile) {
+      timeoutRef.current = setTimeout(() => {
+        setIsOpen(false);
+      }, 300);
+    }
+  };
 
+  const handleMenuMouseEnter = () => {
+    if (!isMobile && timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+  };
+
+  const handleMenuMouseLeave = () => {
+    if (!isMobile) {
+      timeoutRef.current = setTimeout(() => {
+        setIsOpen(false);
+      }, 300);
+    }
+  };
+
+  const renderMobileCategory = (category, level = 0) => {
+    const isExpanded = expandedCategories[category.id];
+    const hasChildren = category.children && category.children.length > 0;
+    
     return (
-      <div key={category.id} className="border-b border-gray-200 dark:border-gray-700 last:border-0">
-        <div
-          className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-          onClick={() => hasChildren ? toggleMobileCategory(category.id) : null}
-        >
-          <Link
-            href={`/category/${category.slug}`}
-            className="flex items-center gap-3 flex-1 text-gray-700 dark:text-gray-300"
+      <div key={category.id} className={`${level > 0 ? 'ml-4' : ''}`}>
+        <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
+          <Link 
+            href={`/category/${category.slug || category.id}`}
+            className="flex items-center gap-3 text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors flex-1"
             onClick={handleLinkClick}
           >
-            <span className="text-2xl">{getCategoryIcon(category.name)}</span>
-            <span className="font-medium">{category.name}</span>
-            {category.product_count > 0 && (
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                ({category.product_count})
+            <span className="text-xl">{getCategoryIcon(category.name)}</span>
+            <div className="flex-1">
+              <span className={`${level === 0 ? 'font-semibold text-base' : 'text-sm'}`}>
+                {category.name}
               </span>
-            )}
+              {category.product_count > 0 && (
+                <span className="ml-2 text-xs bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-300 px-2 py-0.5 rounded-full">
+                  {category.product_count}
+                </span>
+              )}
+            </div>
           </Link>
           {hasChildren && (
-            <svg
-              className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleCategory(category.id);
+              }}
+              className="p-2 text-gray-500 hover:text-orange-500 touch-manipulation"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+              <svg 
+                className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
           )}
         </div>
         
         {hasChildren && isExpanded && (
-          <div className="bg-gray-50 dark:bg-gray-800">
-            {category.children.map(child => (
-              <Link
-                key={child.id}
-                href={`/category/${child.slug}`}
-                className="flex items-center gap-3 px-8 py-3 text-gray-600 dark:text-gray-400 hover:text-orange-500 hover:bg-gray-100 dark:hover:bg-gray-700"
-                onClick={handleLinkClick}
-              >
-                <span className="text-xl">{getCategoryIcon(child.name)}</span>
-                <span>{child.name}</span>
-                {child.product_count > 0 && (
-                  <span className="text-sm">({child.product_count})</span>
-                )}
-              </Link>
-            ))}
+          <div className="bg-gray-50 dark:bg-gray-800/50">
+            {category.children.map((child) => renderMobileCategory(child, level + 1))}
           </div>
         )}
       </div>
@@ -166,55 +208,48 @@ export default function MegaMenu({ isMobile = false, categories = [] }) {  // NO
   };
 
   const renderDesktopCategory = (category) => {
-    const hasChildren = category.children && category.children.length > 0;
-
     return (
       <div key={category.id} className="group">
-        <Link
-          href={`/category/${category.slug}`}
-          className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+        <Link 
+          href={`/category/${category.slug || category.id}`}
+          className="flex items-center gap-2 text-lg font-semibold text-gray-800 dark:text-white hover:text-orange-500 transition-colors mb-3"
           onClick={handleLinkClick}
         >
           <span className="text-2xl">{getCategoryIcon(category.name)}</span>
-          <div className="flex-1">
-            <h3 className="font-semibold text-gray-800 dark:text-white group-hover:text-orange-500 transition-colors">
-              {category.name}
-            </h3>
-            {category.description && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
-                {category.description}
-              </p>
-            )}
-          </div>
-          {hasChildren && (
-            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
+          <span>{category.name}</span>
+          {category.product_count > 0 && (
+            <span className="text-xs bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-300 px-2 py-1 rounded-full">
+              {category.product_count}
+            </span>
           )}
         </Link>
         
-        {hasChildren && (
-          <div className="pl-12 mt-2 space-y-1">
-            {category.children.map(child => (
+        {category.children && category.children.length > 0 && (
+          <div className="space-y-2">
+            {category.children.map((child) => (
               <div key={child.id}>
-                <Link
-                  href={`/category/${child.slug}`}
-                  className="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 hover:bg-gray-50 dark:hover:bg-gray-800 rounded transition-colors"
+                <Link 
+                  href={`/category/${child.slug || child.id}`}
+                  className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors py-1 text-sm"
                   onClick={handleLinkClick}
                 >
-                  • {child.name}
+                  <span className="text-base ml-2">{getCategoryIcon(child.name)}</span>
+                  <span>{child.name}</span>
                   {child.product_count > 0 && (
-                    <span className="text-xs ml-1">({child.product_count})</span>
+                    <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-1.5 py-0.5 rounded-full">
+                      {child.product_count}
+                    </span>
                   )}
                 </Link>
                 
+                {/* Third level categories */}
                 {child.children && child.children.length > 0 && (
-                  <div className="pl-6 mt-1 space-y-1">
-                    {child.children.map(grandchild => (
-                      <Link
+                  <div className="ml-8 mt-1 space-y-1">
+                    {child.children.map((grandchild) => (
+                      <Link 
                         key={grandchild.id}
-                        href={`/category/${grandchild.slug}`}
-                        className="block px-3 py-1 text-xs text-gray-500 dark:text-gray-500 hover:text-orange-500 hover:bg-gray-50 dark:hover:bg-gray-800 rounded transition-colors"
+                        href={`/category/${grandchild.slug || grandchild.id}`}
+                        className="block text-xs text-gray-500 dark:text-gray-500 hover:text-orange-500 transition-colors py-0.5"
                         onClick={handleLinkClick}
                       >
                         • {grandchild.name}
@@ -233,8 +268,7 @@ export default function MegaMenu({ isMobile = false, categories = [] }) {  // NO
     );
   };
 
-  // Get top-level categories for rendering
-  const topLevelCategories = getTopLevelCategories();
+  console.log('Categories state:', categories); // Debug log
 
   // Mobile version
   if (isMobile) {
@@ -259,37 +293,42 @@ export default function MegaMenu({ isMobile = false, categories = [] }) {  // NO
         {isOpen && (
           <div 
             ref={menuRef}
-            className="mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-h-[70vh] overflow-y-auto"
+            className="mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-h-[60vh] overflow-y-auto"
           >
-            {/* REMOVED: Loading state - categories are now passed as props */}
-            <div className="py-2">
-              {topLevelCategories.length > 0 ? (
-                topLevelCategories.map((category) => renderMobileCategory(category))
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  No categories available
-                </div>
-              )}
-            </div>
-            
-            {/* Quick Links for Mobile */}
-            <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900">
-              <h3 className="font-semibold text-gray-800 dark:text-white mb-3">Quick Links</h3>
-              <div className="grid grid-cols-2 gap-2">
-                <Link href="/offers" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 p-2 rounded hover:bg-white dark:hover:bg-gray-800" onClick={handleLinkClick}>
-                  <span>🏷️</span> Offers
-                </Link>
-                <Link href="/new-arrivals" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 p-2 rounded hover:bg-white dark:hover:bg-gray-800" onClick={handleLinkClick}>
-                  <span>✨</span> New
-                </Link>
-                <Link href="/best-sellers" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 p-2 rounded hover:bg-white dark:hover:bg-gray-800" onClick={handleLinkClick}>
-                  <span>🔥</span> Popular
-                </Link>
-                <Link href="/combo-meals" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 p-2 rounded hover:bg-white dark:hover:bg-gray-800" onClick={handleLinkClick}>
-                  <span>🍱</span> Combos
-                </Link>
+            {loading ? (
+              <div className="flex justify-center items-center h-32">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-orange-500"></div>
               </div>
-            </div>
+            ) : categories.length > 0 ? (
+              <>
+                <div className="py-2">
+                  {categories.map((category) => renderMobileCategory(category))}
+                </div>
+                
+                {/* Quick Links for Mobile */}
+                <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900">
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-3">Quick Links</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Link href="/offers" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 p-2 rounded hover:bg-white dark:hover:bg-gray-800" onClick={handleLinkClick}>
+                      <span>🏷️</span> Offers
+                    </Link>
+                    <Link href="/new-arrivals" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 p-2 rounded hover:bg-white dark:hover:bg-gray-800" onClick={handleLinkClick}>
+                      <span>✨</span> New
+                    </Link>
+                    <Link href="/best-sellers" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 p-2 rounded hover:bg-white dark:hover:bg-gray-800" onClick={handleLinkClick}>
+                      <span>🔥</span> Popular
+                    </Link>
+                    <Link href="/combo-meals" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 p-2 rounded hover:bg-white dark:hover:bg-gray-800" onClick={handleLinkClick}>
+                      <span>🍱</span> Combos
+                    </Link>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                No categories available
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -298,11 +337,11 @@ export default function MegaMenu({ isMobile = false, categories = [] }) {  // NO
 
   // Desktop version
   return (
-    <div className="relative">
+    <div className="relative" onMouseLeave={handleMouseLeave}>
       <button
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
-        onMouseEnter={() => !isMobile && setIsOpen(true)}
+        onMouseEnter={handleMouseEnter}
         className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -327,19 +366,53 @@ export default function MegaMenu({ isMobile = false, categories = [] }) {  // NO
           <div 
             ref={menuRef}
             className="absolute left-0 top-full z-50 w-screen bg-white dark:bg-gray-900 shadow-2xl border-t border-gray-200 dark:border-gray-700"
-            onMouseLeave={() => !isMobile && setIsOpen(false)}
+            onMouseEnter={handleMenuMouseEnter}
+            onMouseLeave={handleMenuMouseLeave}
           >
-            <div className="container mx-auto px-4 py-8 max-h-[80vh] overflow-y-auto">
-              {/* REMOVED: Loading state */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                {topLevelCategories.length > 0 ? (
-                  topLevelCategories.map((category) => renderDesktopCategory(category))
-                ) : (
-                  <div className="col-span-full text-center py-12 text-gray-500">
-                    No categories available
+            <div className="container mx-auto px-4 py-6">
+              {loading ? (
+                <div className="flex justify-center items-center h-40">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-orange-500"></div>
+                </div>
+              ) : categories.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-h-[70vh] overflow-y-auto px-2">
+                    {categories.map((category) => renderDesktopCategory(category))}
                   </div>
-                )}
-              </div>
+                  
+                  {/* Quick Links Section for Desktop */}
+                  <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-center gap-8">
+                      <Link href="/offers" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors" onClick={handleLinkClick}>
+                        <span className="text-lg">🏷️</span>
+                        <span className="font-medium">Today's Offers</span>
+                      </Link>
+                      <Link href="/new-arrivals" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors" onClick={handleLinkClick}>
+                        <span className="text-lg">✨</span>
+                        <span className="font-medium">New Arrivals</span>
+                      </Link>
+                      <Link href="/best-sellers" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors" onClick={handleLinkClick}>
+                        <span className="text-lg">🔥</span>
+                        <span className="font-medium">Best Sellers</span>
+                      </Link>
+                      <Link href="/combo-meals" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors" onClick={handleLinkClick}>
+                        <span className="text-lg">🍱</span>
+                        <span className="font-medium">Combo Meals</span>
+                      </Link>
+                      <Link href="/menu" className="flex items-center gap-2 text-sm text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 transition-colors font-medium" onClick={handleLinkClick}>
+                        <span>View All Categories</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Link>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  No categories available
+                </div>
+              )}
             </div>
           </div>
         </>
