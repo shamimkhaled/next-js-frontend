@@ -77,31 +77,13 @@ body {
   }
 }
 
-/* Prevent body scroll when mobile menu is open */
-body.mobile-menu-open {
-  overflow: hidden;
-  position: fixed;
-  width: 100%;
-  height: 100%;
-}
-
-/* Ensure mobile menu scrolls properly */
-.mobile-menu-container {
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-}
-
 /* Improve touch targets on mobile */
 @media (max-width: 768px) {
   button, a {
     min-height: 44px;
-    min-width: 44px;
+    display: flex;
+    align-items: center;
   }
-}
-
-/* Fix for iOS bounce scroll */
-.ios-scroll-fix {
-  -webkit-overflow-scrolling: touch;
 }
 
 /* Responsive font sizes */
@@ -117,13 +99,9 @@ body.mobile-menu-open {
   z-index: 50;
 }
 
-.mobile-menu-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-}
-
-.mobile-menu-content {
-  position: fixed;
-  z-index: 45;
+/* Smooth transitions */
+* {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
 }

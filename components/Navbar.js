@@ -4,62 +4,162 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import MegaMenu from './MegaMenu';
 import CartIcon from './CartIcon';
-import { getCategories } from '@/lib/api';
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Default categories with proper tree structure
+  const defaultCategories = [
+    {
+      id: 1,
+      name: "Indian Cuisine",
+      slug: "indian-cuisine",
+      product_count: 0,
+      children: [
+        { 
+          id: 11, 
+          name: "Curries", 
+          slug: "curries", 
+          product_count: 0, 
+          children: [
+            { id: 111, name: "Veg Curries", slug: "veg-curries", product_count: 0, children: [] },
+            { id: 112, name: "Non-Veg Curries", slug: "non-veg-curries", product_count: 0, children: [] }
+          ] 
+        },
+        { 
+          id: 12, 
+          name: "Biryanis & Rice", 
+          slug: "biryanis-rice", 
+          product_count: 0, 
+          children: [
+            { id: 121, name: "Veg Biryani", slug: "veg-biryani", product_count: 0, children: [] },
+            { id: 122, name: "Chicken Biryani", slug: "chicken-biryani", product_count: 0, children: [] }
+          ] 
+        },
+        { id: 13, name: "Indian Breads", slug: "indian-breads", product_count: 0, children: [] },
+        { id: 14, name: "Indian Starters", slug: "indian-starters", product_count: 0, children: [] }
+      ]
+    },
+    {
+      id: 2,
+      name: "Chinese Cuisine",
+      slug: "chinese-cuisine",
+      product_count: 0,
+      children: [
+        { 
+          id: 21, 
+          name: "Noodles", 
+          slug: "noodles", 
+          product_count: 0, 
+          children: [
+            { id: 211, name: "Veg Noodles", slug: "veg-noodles", product_count: 0, children: [] },
+            { id: 212, name: "Chicken Noodles", slug: "chicken-noodles", product_count: 0, children: [] }
+          ] 
+        },
+        { id: 22, name: "Rice Dishes", slug: "rice-dishes", product_count: 0, children: [] },
+        { id: 23, name: "Chinese Starters", slug: "chinese-starters", product_count: 0, children: [] }
+      ]
+    },
+    {
+      id: 3,
+      name: "Italian Cuisine",
+      slug: "italian-cuisine",
+      product_count: 0,
+      children: [
+        { id: 31, name: "Pizzas", slug: "pizzas", product_count: 0, children: [] },
+        { id: 32, name: "Pastas", slug: "pastas", product_count: 0, children: [] }
+      ]
+    },
+    {
+      id: 4,
+      name: "Fast Food",
+      slug: "fast-food",
+      product_count: 0,
+      children: [
+        { id: 41, name: "Burgers", slug: "burgers", product_count: 0, children: [] },
+        { id: 42, name: "Sandwiches & Wraps", slug: "sandwiches-wraps", product_count: 0, children: [] }
+      ]
+    },
+    {
+      id: 5,
+      name: "Beverages",
+      slug: "beverages",
+      product_count: 0,
+      children: []
+    },
+    {
+      id: 6,
+      name: "Desserts",
+      slug: "desserts",
+      product_count: 0,
+      children: []
+    }
+  ];
+
   useEffect(() => {
+    // Set default categories immediately
+    setCategories(defaultCategories);
+    setLoading(false);
+    
+    // Then try to fetch real categories
     fetchCategories();
   }, []);
 
   const fetchCategories = async () => {
     try {
-      const response = await getCategories();
-      console.log('Categories response:', response);
-      
-      let categoriesData = [];
-      
-      // Handle different response formats
-      if (Array.isArray(response)) {
-        categoriesData = response;
-      } else if (response?.data && Array.isArray(response.data)) {
-        categoriesData = response.data;
-      } else if (response?.categories && Array.isArray(response.categories)) {
-        categoriesData = response.categories;
-      } else if (response?.results && Array.isArray(response.results)) {
-        categoriesData = response.results;
-      }
-      
-      setCategories(categoriesData);
-    } catch (error) {
-      console.error('Failed to fetch categories:', error);
-      // Fallback categories
-      setCategories([
-        {
-          id: 1,
-          name: "Indian Cuisine",
-          slug: "indian-cuisine",
-          children: []
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://seashell-app-4gkvz.ondigitalocean.app/api';
+      const response = await fetch(`${apiUrl}/categories/tree/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
-        {
-          id: 2,
-          name: "Chinese Cuisine", 
-          slug: "chinese-cuisine",
-          children: []
-        },
-        {
-          id: 3,
-          name: "Fast Food",
-          slug: "fast-food",
-          children: []
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('API Response:', data);
+        
+        let categoriesData = [];
+        
+        // Handle different response formats
+        if (Array.isArray(data)) {
+          categoriesData = data;
+        } else if (data?.data && Array.isArray(data.data)) {
+          categoriesData = data.data;
+        } else if (data?.categories && Array.isArray(data.categories)) {
+          categoriesData = data.categories;
+        } else if (data?.results && Array.isArray(data.results)) {
+          categoriesData = data.results;
         }
-      ]);
-    } finally {
-      setLoading(false);
+
+        // Ensure each category has a children array
+        const normalizedCategories = categoriesData.map(cat => ({
+          ...cat,
+          children: Array.isArray(cat.children) ? cat.children : []
+        }));
+
+        console.log('Normalized categories:', normalizedCategories);
+
+        // Only update if we got valid categories
+        if (normalizedCategories.length > 0) {
+          setCategories(normalizedCategories);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      // Keep using default categories
     }
+  };
+
+  const handleMobileMenuToggle = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+
+  const closeMobileMenu = () => {
+    setMobileMenuOpen(false);
   };
 
   return (
@@ -110,8 +210,9 @@ export default function Navbar() {
 
             {/* Mobile Menu Toggle */}
             <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              onClick={handleMobileMenuToggle}
               className="lg:hidden p-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors"
+              aria-label="Toggle mobile menu"
             >
               {mobileMenuOpen ? (
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -130,32 +231,32 @@ export default function Navbar() {
         {mobileMenuOpen && (
           <div className="lg:hidden border-t border-gray-200 dark:border-gray-700 py-4">
             <div className="flex flex-col space-y-2">
-              <MegaMenu isMobile={true} categories={categories} />
+              <MegaMenu isMobile={true} categories={categories} onClose={closeMobileMenu} />
               <Link 
                 href="/menu" 
                 className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={closeMobileMenu}
               >
                 Menu
               </Link>
               <Link 
                 href="/offers" 
                 className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={closeMobileMenu}
               >
                 Offers
               </Link>
               <Link 
                 href="/about" 
                 className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={closeMobileMenu}
               >
                 About
               </Link>
               <Link 
                 href="/contact" 
                 className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={closeMobileMenu}
               >
                 Contact
               </Link>

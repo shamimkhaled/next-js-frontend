@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import ProductCard from '@/components/ProductCard';
-import LoadingSpinner from '@/components/LoadingSpinner';
 import { getProducts, getCategories } from '@/lib/api';
 
 export async function generateStaticParams() {
@@ -10,15 +9,19 @@ export async function generateStaticParams() {
     
     // Generate paths for all categories and subcategories
     function extractPaths(cats) {
+      if (!Array.isArray(cats)) return;
+      
       cats.forEach(cat => {
-        paths.push({ slug: cat.slug });
+        if (cat.slug) {
+          paths.push({ slug: cat.slug });
+        }
         if (cat.children && cat.children.length > 0) {
           extractPaths(cat.children);
         }
       });
     }
     
-    if (categories) {
+    if (Array.isArray(categories)) {
       extractPaths(categories);
     }
     
@@ -30,33 +33,41 @@ export async function generateStaticParams() {
 }
 
 export default async function CategoryPage({ params }) {
-  // Await params before accessing its properties (Next.js 15 requirement)
+  // Await params as required in Next.js 15
   const { slug } = await params;
   
-  // Fetch products for this category
-  const productsData = await getProducts({ category: slug });
-  const products = productsData?.results || [];
-  
-  // Fetch category details
-  const categories = await getCategories();
+  let products = [];
   let currentCategory = null;
   
-  // Find the current category in the tree
-  function findCategory(cats, targetSlug) {
-    for (const cat of cats) {
-      if (cat.slug === targetSlug) {
-        return cat;
+  try {
+    // Fetch products for this category
+    const productsData = await getProducts({ category: slug });
+    products = productsData?.results || [];
+    
+    // Fetch category details
+    const categories = await getCategories();
+    
+    // Find the current category in the tree
+    function findCategory(cats, targetSlug) {
+      if (!Array.isArray(cats)) return null;
+      
+      for (const cat of cats) {
+        if (cat.slug === targetSlug) {
+          return cat;
+        }
+        if (cat.children && cat.children.length > 0) {
+          const found = findCategory(cat.children, targetSlug);
+          if (found) return found;
+        }
       }
-      if (cat.children && cat.children.length > 0) {
-        const found = findCategory(cat.children, targetSlug);
-        if (found) return found;
-      }
+      return null;
     }
-    return null;
-  }
-  
-  if (categories) {
-    currentCategory = findCategory(categories, slug);
+    
+    if (Array.isArray(categories)) {
+      currentCategory = findCategory(categories, slug);
+    }
+  } catch (error) {
+    console.error('Error fetching category data:', error);
   }
 
   return (

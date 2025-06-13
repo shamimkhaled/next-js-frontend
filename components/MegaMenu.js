@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 
 export default function MegaMenu({ isMobile = false, categories = [], onClose }) {
@@ -9,6 +9,11 @@ export default function MegaMenu({ isMobile = false, categories = [], onClose })
   const menuRef = useRef(null);
   const buttonRef = useRef(null);
   const timeoutRef = useRef(null);
+
+  // Debug log to check categories structure
+  useEffect(() => {
+    console.log('MegaMenu categories:', categories);
+  }, [categories]);
 
   // Close menu when clicking outside (desktop only)
   useEffect(() => {
@@ -72,16 +77,13 @@ export default function MegaMenu({ isMobile = false, categories = [], onClose })
       'Grills': '🍖',
       'BBQ': '🍗',
       'Breakfast': '🍳',
-      'Snacks': '🍿',
-      'Drinks': '🥤',
-      'Sweets': '🍮',
-      'Healthy': '🥗',
-      'Kids Menu': '🧒'
+      'Snacks': '🍿'
     };
     return icons[categoryName] || '🍴';
   };
 
   const toggleCategory = (categoryId) => {
+    console.log('Toggling category:', categoryId);
     setExpandedCategories(prev => ({
       ...prev,
       [categoryId]: !prev[categoryId]
@@ -91,7 +93,9 @@ export default function MegaMenu({ isMobile = false, categories = [], onClose })
   const handleLinkClick = () => {
     setIsOpen(false);
     setExpandedCategories({});
-    if (onClose) onClose();
+    if (onClose) {
+      onClose();
+    }
   };
 
   const handleMouseEnter = () => {
@@ -111,24 +115,14 @@ export default function MegaMenu({ isMobile = false, categories = [], onClose })
     }
   };
 
-  const handleMenuMouseEnter = () => {
-    if (!isMobile && timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-  };
-
-  const handleMenuMouseLeave = () => {
-    if (!isMobile) {
-      timeoutRef.current = setTimeout(() => {
-        setIsOpen(false);
-      }, 300);
-    }
-  };
-
   const renderMobileCategory = (category, level = 0) => {
-    const categoryId = category.id || category.slug || category.name;
+    if (!category) return null;
+    
+    const categoryId = category.id || `${category.slug}-${level}`;
     const isExpanded = expandedCategories[categoryId];
-    const hasChildren = category.children && category.children.length > 0;
+    const hasChildren = category.children && Array.isArray(category.children) && category.children.length > 0;
+    
+    console.log(`Rendering category: ${category.name}, hasChildren: ${hasChildren}, isExpanded: ${isExpanded}`);
     
     return (
       <div key={categoryId} className={`${level > 0 ? 'ml-4' : ''}`}>
@@ -143,11 +137,6 @@ export default function MegaMenu({ isMobile = false, categories = [], onClose })
               <span className={`${level === 0 ? 'font-semibold text-base' : 'text-sm'} block truncate`}>
                 {category.name}
               </span>
-              {category.description && (
-                <span className="text-xs text-gray-500 dark:text-gray-400 block truncate">
-                  {category.description}
-                </span>
-              )}
             </div>
             {category.product_count > 0 && (
               <span className="text-xs bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-300 px-2 py-0.5 rounded-full flex-shrink-0">
@@ -158,6 +147,7 @@ export default function MegaMenu({ isMobile = false, categories = [], onClose })
           {hasChildren && (
             <button
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 toggleCategory(categoryId);
               }}
@@ -178,7 +168,11 @@ export default function MegaMenu({ isMobile = false, categories = [], onClose })
         
         {hasChildren && isExpanded && (
           <div className="bg-gray-50 dark:bg-gray-800/50">
-            {category.children.map((child) => renderMobileCategory(child, level + 1))}
+            {category.children.map((child, index) => (
+              <div key={child.id || `${child.slug}-${index}`}>
+                {renderMobileCategory(child, level + 1)}
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -186,7 +180,10 @@ export default function MegaMenu({ isMobile = false, categories = [], onClose })
   };
 
   const renderDesktopCategory = (category) => {
-    const categoryId = category.id || category.slug || category.name;
+    if (!category) return null;
+    
+    const categoryId = category.id || category.slug;
+    const hasChildren = category.children && Array.isArray(category.children) && category.children.length > 0;
     
     return (
       <div key={categoryId} className="group">
@@ -204,10 +201,13 @@ export default function MegaMenu({ isMobile = false, categories = [], onClose })
           )}
         </Link>
         
-        {category.children && category.children.length > 0 && (
+        {hasChildren && (
           <div className="space-y-2">
-            {category.children.map((child) => {
-              const childId = child.id || child.slug || child.name;
+            {category.children.map((child, index) => {
+              if (!child) return null;
+              const childId = child.id || `${child.slug}-${index}`;
+              const hasGrandchildren = child.children && Array.isArray(child.children) && child.children.length > 0;
+              
               return (
                 <div key={childId}>
                   <Link 
@@ -225,10 +225,12 @@ export default function MegaMenu({ isMobile = false, categories = [], onClose })
                   </Link>
                   
                   {/* Third level categories */}
-                  {child.children && child.children.length > 0 && (
+                  {hasGrandchildren && (
                     <div className="ml-8 mt-1 space-y-1">
-                      {child.children.map((grandchild) => {
-                        const grandchildId = grandchild.id || grandchild.slug || grandchild.name;
+                      {child.children.map((grandchild, gIndex) => {
+                        if (!grandchild) return null;
+                        const grandchildId = grandchild.id || `${grandchild.slug}-${gIndex}`;
+                        
                         return (
                           <Link 
                             key={grandchildId}
@@ -288,18 +290,15 @@ export default function MegaMenu({ isMobile = false, categories = [], onClose })
           >
             {categories.length > 0 ? (
               <div className="py-2">
-                {categories.map((category) => renderMobileCategory(category))}
+                {categories.map((category, index) => (
+                  <div key={category.id || `cat-${index}`}>
+                    {renderMobileCategory(category)}
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="text-center py-8 px-4">
-                <p className="text-gray-500 mb-4">No categories available</p>
-                <Link 
-                  href="/menu" 
-                  className="text-orange-500 hover:text-orange-600 underline"
-                  onClick={handleLinkClick}
-                >
-                  Browse Full Menu →
-                </Link>
+                <p className="text-gray-500">No categories available</p>
               </div>
             )}
           </div>
@@ -339,14 +338,18 @@ export default function MegaMenu({ isMobile = false, categories = [], onClose })
           <div 
             ref={menuRef}
             className="absolute left-0 top-full z-50 w-screen bg-white dark:bg-gray-900 shadow-2xl border-t border-gray-200 dark:border-gray-700"
-            onMouseEnter={handleMenuMouseEnter}
-            onMouseLeave={handleMenuMouseLeave}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
           >
             <div className="container mx-auto px-4 py-6">
               {categories.length > 0 ? (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-h-[70vh] overflow-y-auto px-2">
-                    {categories.map((category) => renderDesktopCategory(category))}
+                    {categories.map((category, index) => (
+                      <div key={category.id || `cat-${index}`}>
+                        {renderDesktopCategory(category)}
+                      </div>
+                    ))}
                   </div>
                   
                   {/* Quick Links Section for Desktop */}
@@ -389,14 +392,7 @@ export default function MegaMenu({ isMobile = false, categories = [], onClose })
                 </>
               ) : (
                 <div className="text-center py-12 text-gray-500">
-                  <p className="mb-4">No categories available</p>
-                  <Link 
-                    href="/menu" 
-                    className="text-orange-500 hover:text-orange-600 underline" 
-                    onClick={handleLinkClick}
-                  >
-                    Browse Full Menu →
-                  </Link>
+                  <p>No categories available</p>
                 </div>
               )}
             </div>

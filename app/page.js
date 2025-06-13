@@ -3,14 +3,27 @@ import ProductsSection from '@/components/ProductsSection';
 import { getProducts, getCategories } from '@/lib/api';
 
 export default async function Home({ searchParams }) {
-  // Await searchParams before accessing its properties (Next.js 15 requirement)
+  // Await searchParams as required in Next.js 15
   const params = await searchParams;
   const page = params?.page || 1;
   
-  const [productsData, categories] = await Promise.all([
-    getProducts({ page }),
-    getCategories()
-  ]);
+  let productsData = null;
+  let categories = [];
+
+  try {
+    const [productsResponse, categoriesResponse] = await Promise.all([
+      getProducts({ page }),
+      getCategories()
+    ]);
+    
+    productsData = productsResponse;
+    categories = categoriesResponse || [];
+  } catch (error) {
+    console.error('Error fetching data:', error);
+    // Set default values on error
+    productsData = { results: [], count: 0, next: null, previous: null };
+    categories = [];
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
