@@ -3,7 +3,9 @@ import ProductsSection from '@/components/ProductsSection';
 import { getProducts, getCategories } from '@/lib/api';
 
 export default async function Home({ searchParams }) {
-  const page = searchParams?.page || 1;
+  // Await searchParams before accessing its properties (Next.js 15 requirement)
+  const params = await searchParams;
+  const page = params?.page || 1;
   
   const [productsData, categories] = await Promise.all([
     getProducts({ page }),

@@ -1,12 +1,66 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import MegaMenu from './MegaMenu';
 import CartIcon from './CartIcon';
+import { getCategories } from '@/lib/api';
 
-export default function Navbar({ categories = [] }) {  // ADDED: categories prop
+export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await getCategories();
+      console.log('Categories response:', response);
+      
+      let categoriesData = [];
+      
+      // Handle different response formats
+      if (Array.isArray(response)) {
+        categoriesData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        categoriesData = response.data;
+      } else if (response?.categories && Array.isArray(response.categories)) {
+        categoriesData = response.categories;
+      } else if (response?.results && Array.isArray(response.results)) {
+        categoriesData = response.results;
+      }
+      
+      setCategories(categoriesData);
+    } catch (error) {
+      console.error('Failed to fetch categories:', error);
+      // Fallback categories
+      setCategories([
+        {
+          id: 1,
+          name: "Indian Cuisine",
+          slug: "indian-cuisine",
+          children: []
+        },
+        {
+          id: 2,
+          name: "Chinese Cuisine", 
+          slug: "chinese-cuisine",
+          children: []
+        },
+        {
+          id: 3,
+          name: "Fast Food",
+          slug: "fast-food",
+          children: []
+        }
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <nav className="bg-white dark:bg-gray-900 shadow-lg sticky top-0 z-50">
@@ -20,7 +74,7 @@ export default function Navbar({ categories = [] }) {  // ADDED: categories prop
 
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center gap-4">
-            <MegaMenu categories={categories} />  {/* ADDED: pass categories */}
+            <MegaMenu categories={categories} />
             <Link href="/menu" className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium">
               Menu
             </Link>
@@ -76,7 +130,7 @@ export default function Navbar({ categories = [] }) {  // ADDED: categories prop
         {mobileMenuOpen && (
           <div className="lg:hidden border-t border-gray-200 dark:border-gray-700 py-4">
             <div className="flex flex-col space-y-2">
-              <MegaMenu isMobile={true} categories={categories} />  {/* ADDED: pass categories */}
+              <MegaMenu isMobile={true} categories={categories} />
               <Link 
                 href="/menu" 
                 className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"

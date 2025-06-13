@@ -2,23 +2,18 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { getCategories } from '@/lib/api';
 
-export default function MegaMenu({ isMobile = false }) {
-  const [categories, setCategories] = useState([]);
+export default function MegaMenu({ isMobile = false, categories = [], onClose }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [expandedCategories, setExpandedCategories] = useState({});
   const menuRef = useRef(null);
   const buttonRef = useRef(null);
   const timeoutRef = useRef(null);
 
+  // Close menu when clicking outside (desktop only)
   useEffect(() => {
-    fetchCategories();
-  }, []);
+    if (isMobile) return;
 
-  // Close menu when clicking outside
-  useEffect(() => {
     const handleClickOutside = (event) => {
       if (
         menuRef.current && 
@@ -39,7 +34,7 @@ export default function MegaMenu({ isMobile = false }) {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
     };
-  }, [isOpen]);
+  }, [isOpen, isMobile]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -49,35 +44,6 @@ export default function MegaMenu({ isMobile = false }) {
       }
     };
   }, []);
-
-  const fetchCategories = async () => {
-    try {
-      const response = await getCategories();
-      console.log('Raw API Response:', response);
-      
-      // Since the API endpoint is /categories/tree/, it likely returns the tree structure directly
-      if (Array.isArray(response)) {
-        setCategories(response);
-      } else if (response && typeof response === 'object') {
-        // If it's wrapped in an object, try common property names
-        const data = response.data || response.results || response.categories || response;
-        if (Array.isArray(data)) {
-          setCategories(data);
-        } else {
-          console.error('Unexpected response format:', response);
-          setCategories([]);
-        }
-      } else {
-        console.error('Invalid response format:', response);
-        setCategories([]);
-      }
-    } catch (error) {
-      console.error('Failed to fetch categories:', error);
-      setCategories([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getCategoryIcon = (categoryName) => {
     const icons = {
@@ -106,7 +72,11 @@ export default function MegaMenu({ isMobile = false }) {
       'Grills': '🍖',
       'BBQ': '🍗',
       'Breakfast': '🍳',
-      'Snacks': '🍿'
+      'Snacks': '🍿',
+      'Drinks': '🥤',
+      'Sweets': '🍮',
+      'Healthy': '🥗',
+      'Kids Menu': '🧒'
     };
     return icons[categoryName] || '🍴';
   };
@@ -121,6 +91,7 @@ export default function MegaMenu({ isMobile = false }) {
   const handleLinkClick = () => {
     setIsOpen(false);
     setExpandedCategories({});
+    if (onClose) onClose();
   };
 
   const handleMouseEnter = () => {
@@ -155,36 +126,43 @@ export default function MegaMenu({ isMobile = false }) {
   };
 
   const renderMobileCategory = (category, level = 0) => {
-    const isExpanded = expandedCategories[category.id];
+    const categoryId = category.id || category.slug || category.name;
+    const isExpanded = expandedCategories[categoryId];
     const hasChildren = category.children && category.children.length > 0;
     
     return (
-      <div key={category.id} className={`${level > 0 ? 'ml-4' : ''}`}>
+      <div key={categoryId} className={`${level > 0 ? 'ml-4' : ''}`}>
         <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
           <Link 
             href={`/category/${category.slug || category.id}`}
-            className="flex items-center gap-3 text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors flex-1"
+            className="flex items-center gap-3 text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors flex-1 min-w-0"
             onClick={handleLinkClick}
           >
-            <span className="text-xl">{getCategoryIcon(category.name)}</span>
-            <div className="flex-1">
-              <span className={`${level === 0 ? 'font-semibold text-base' : 'text-sm'}`}>
+            <span className="text-xl flex-shrink-0">{getCategoryIcon(category.name)}</span>
+            <div className="flex-1 min-w-0">
+              <span className={`${level === 0 ? 'font-semibold text-base' : 'text-sm'} block truncate`}>
                 {category.name}
               </span>
-              {category.product_count > 0 && (
-                <span className="ml-2 text-xs bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-300 px-2 py-0.5 rounded-full">
-                  {category.product_count}
+              {category.description && (
+                <span className="text-xs text-gray-500 dark:text-gray-400 block truncate">
+                  {category.description}
                 </span>
               )}
             </div>
+            {category.product_count > 0 && (
+              <span className="text-xs bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-300 px-2 py-0.5 rounded-full flex-shrink-0">
+                {category.product_count}
+              </span>
+            )}
           </Link>
           {hasChildren && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                toggleCategory(category.id);
+                toggleCategory(categoryId);
               }}
-              className="p-2 text-gray-500 hover:text-orange-500 touch-manipulation"
+              className="p-2 text-gray-500 hover:text-orange-500 touch-manipulation flex-shrink-0 ml-2"
+              aria-label={`Toggle ${category.name} subcategories`}
             >
               <svg 
                 className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
@@ -208,8 +186,10 @@ export default function MegaMenu({ isMobile = false }) {
   };
 
   const renderDesktopCategory = (category) => {
+    const categoryId = category.id || category.slug || category.name;
+    
     return (
-      <div key={category.id} className="group">
+      <div key={categoryId} className="group">
         <Link 
           href={`/category/${category.slug || category.id}`}
           className="flex items-center gap-2 text-lg font-semibold text-gray-800 dark:text-white hover:text-orange-500 transition-colors mb-3"
@@ -226,49 +206,53 @@ export default function MegaMenu({ isMobile = false }) {
         
         {category.children && category.children.length > 0 && (
           <div className="space-y-2">
-            {category.children.map((child) => (
-              <div key={child.id}>
-                <Link 
-                  href={`/category/${child.slug || child.id}`}
-                  className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors py-1 text-sm"
-                  onClick={handleLinkClick}
-                >
-                  <span className="text-base ml-2">{getCategoryIcon(child.name)}</span>
-                  <span>{child.name}</span>
-                  {child.product_count > 0 && (
-                    <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-1.5 py-0.5 rounded-full">
-                      {child.product_count}
-                    </span>
+            {category.children.map((child) => {
+              const childId = child.id || child.slug || child.name;
+              return (
+                <div key={childId}>
+                  <Link 
+                    href={`/category/${child.slug || child.id}`}
+                    className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors py-1 text-sm group/child"
+                    onClick={handleLinkClick}
+                  >
+                    <span className="text-base ml-2">{getCategoryIcon(child.name)}</span>
+                    <span className="group-hover/child:underline">{child.name}</span>
+                    {child.product_count > 0 && (
+                      <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-1.5 py-0.5 rounded-full">
+                        {child.product_count}
+                      </span>
+                    )}
+                  </Link>
+                  
+                  {/* Third level categories */}
+                  {child.children && child.children.length > 0 && (
+                    <div className="ml-8 mt-1 space-y-1">
+                      {child.children.map((grandchild) => {
+                        const grandchildId = grandchild.id || grandchild.slug || grandchild.name;
+                        return (
+                          <Link 
+                            key={grandchildId}
+                            href={`/category/${grandchild.slug || grandchild.id}`}
+                            className="block text-xs text-gray-500 dark:text-gray-500 hover:text-orange-500 transition-colors py-0.5 hover:underline"
+                            onClick={handleLinkClick}
+                          >
+                            • {grandchild.name}
+                            {grandchild.product_count > 0 && (
+                              <span className="text-xs ml-1">({grandchild.product_count})</span>
+                            )}
+                          </Link>
+                        );
+                      })}
+                    </div>
                   )}
-                </Link>
-                
-                {/* Third level categories */}
-                {child.children && child.children.length > 0 && (
-                  <div className="ml-8 mt-1 space-y-1">
-                    {child.children.map((grandchild) => (
-                      <Link 
-                        key={grandchild.id}
-                        href={`/category/${grandchild.slug || grandchild.id}`}
-                        className="block text-xs text-gray-500 dark:text-gray-500 hover:text-orange-500 transition-colors py-0.5"
-                        onClick={handleLinkClick}
-                      >
-                        • {grandchild.name}
-                        {grandchild.product_count > 0 && (
-                          <span className="text-xs ml-1">({grandchild.product_count})</span>
-                        )}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
     );
   };
-
-  console.log('Categories state:', categories); // Debug log
 
   // Mobile version
   if (isMobile) {
@@ -277,56 +261,45 @@ export default function MegaMenu({ isMobile = false }) {
         <button
           ref={buttonRef}
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center justify-between w-full px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
+          className="flex items-center justify-between w-full px-4 py-3 text-gray-700 dark:text-gray-300 hover:text-orange-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
             <span>All Categories</span>
           </div>
-          <svg className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
+          <div className="flex items-center gap-2">
+            {categories.length > 0 && (
+              <span className="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded-full">
+                {categories.length}
+              </span>
+            )}
+            <svg className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
         </button>
 
         {isOpen && (
           <div 
             ref={menuRef}
-            className="mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-h-[60vh] overflow-y-auto"
+            className="mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-h-[50vh] overflow-y-auto"
           >
-            {loading ? (
-              <div className="flex justify-center items-center h-32">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-orange-500"></div>
+            {categories.length > 0 ? (
+              <div className="py-2">
+                {categories.map((category) => renderMobileCategory(category))}
               </div>
-            ) : categories.length > 0 ? (
-              <>
-                <div className="py-2">
-                  {categories.map((category) => renderMobileCategory(category))}
-                </div>
-                
-                {/* Quick Links for Mobile */}
-                <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900">
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-3">Quick Links</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Link href="/offers" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 p-2 rounded hover:bg-white dark:hover:bg-gray-800" onClick={handleLinkClick}>
-                      <span>🏷️</span> Offers
-                    </Link>
-                    <Link href="/new-arrivals" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 p-2 rounded hover:bg-white dark:hover:bg-gray-800" onClick={handleLinkClick}>
-                      <span>✨</span> New
-                    </Link>
-                    <Link href="/best-sellers" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 p-2 rounded hover:bg-white dark:hover:bg-gray-800" onClick={handleLinkClick}>
-                      <span>🔥</span> Popular
-                    </Link>
-                    <Link href="/combo-meals" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 p-2 rounded hover:bg-white dark:hover:bg-gray-800" onClick={handleLinkClick}>
-                      <span>🍱</span> Combos
-                    </Link>
-                  </div>
-                </div>
-              </>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                No categories available
+              <div className="text-center py-8 px-4">
+                <p className="text-gray-500 mb-4">No categories available</p>
+                <Link 
+                  href="/menu" 
+                  className="text-orange-500 hover:text-orange-600 underline"
+                  onClick={handleLinkClick}
+                >
+                  Browse Full Menu →
+                </Link>
               </div>
             )}
           </div>
@@ -370,11 +343,7 @@ export default function MegaMenu({ isMobile = false }) {
             onMouseLeave={handleMenuMouseLeave}
           >
             <div className="container mx-auto px-4 py-6">
-              {loading ? (
-                <div className="flex justify-center items-center h-40">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-orange-500"></div>
-                </div>
-              ) : categories.length > 0 ? (
+              {categories.length > 0 ? (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-h-[70vh] overflow-y-auto px-2">
                     {categories.map((category) => renderDesktopCategory(category))}
@@ -382,35 +351,52 @@ export default function MegaMenu({ isMobile = false }) {
                   
                   {/* Quick Links Section for Desktop */}
                   <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center justify-center gap-8">
-                      <Link href="/offers" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors" onClick={handleLinkClick}>
+                    <div className="flex flex-wrap items-center justify-center gap-4 lg:gap-8">
+                      <Link 
+                        href="/menu" 
+                        className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors" 
+                        onClick={handleLinkClick}
+                      >
+                        <span className="text-lg">📖</span>
+                        <span className="font-medium">Full Menu</span>
+                      </Link>
+                      <Link 
+                        href="/offers" 
+                        className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors" 
+                        onClick={handleLinkClick}
+                      >
                         <span className="text-lg">🏷️</span>
                         <span className="font-medium">Today&apos;s Offers</span>
                       </Link>
-                      <Link href="/new-arrivals" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors" onClick={handleLinkClick}>
+                      <Link 
+                        href="/new-arrivals" 
+                        className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors" 
+                        onClick={handleLinkClick}
+                      >
                         <span className="text-lg">✨</span>
                         <span className="font-medium">New Arrivals</span>
                       </Link>
-                      <Link href="/best-sellers" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors" onClick={handleLinkClick}>
+                      <Link 
+                        href="/best-sellers" 
+                        className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors" 
+                        onClick={handleLinkClick}
+                      >
                         <span className="text-lg">🔥</span>
                         <span className="font-medium">Best Sellers</span>
-                      </Link>
-                      <Link href="/combo-meals" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors" onClick={handleLinkClick}>
-                        <span className="text-lg">🍱</span>
-                        <span className="font-medium">Combo Meals</span>
-                      </Link>
-                      <Link href="/menu" className="flex items-center gap-2 text-sm text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 transition-colors font-medium" onClick={handleLinkClick}>
-                        <span>View All Categories</span>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
                       </Link>
                     </div>
                   </div>
                 </>
               ) : (
                 <div className="text-center py-12 text-gray-500">
-                  No categories available
+                  <p className="mb-4">No categories available</p>
+                  <Link 
+                    href="/menu" 
+                    className="text-orange-500 hover:text-orange-600 underline" 
+                    onClick={handleLinkClick}
+                  >
+                    Browse Full Menu →
+                  </Link>
                 </div>
               )}
             </div>

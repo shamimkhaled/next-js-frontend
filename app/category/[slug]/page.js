@@ -30,6 +30,7 @@ export async function generateStaticParams() {
 }
 
 export default async function CategoryPage({ params }) {
+  // Await params before accessing its properties (Next.js 15 requirement)
   const { slug } = await params;
   
   // Fetch products for this category
@@ -86,63 +87,15 @@ export default async function CategoryPage({ params }) {
               <span key={index}>
                 {index > 0 && <span className="mx-2">›</span>}
                 {index === array.length - 1 ? (
-                  <span className="text-gray-800 dark:text-gray-200 font-medium">{path}</span>
+                  <span className="text-gray-800 dark:text-gray-200">{path}</span>
                 ) : (
-                  <span className="hover:text-orange-500 cursor-pointer transition-colors">{path}</span>
+                  <Link href="#" className="hover:text-orange-500 transition-colors">
+                    {path}
+                  </Link>
                 )}
               </span>
             ))}
           </nav>
-        </section>
-      )}
-
-      {/* Filters and Attributes */}
-      {currentCategory?.attributes && currentCategory.attributes.length > 0 && (
-        <section className="container mx-auto px-4 py-8">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-            <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">
-              Filter Options
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {currentCategory.attributes.map((attr) => (
-                <div key={attr.id}>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    {attr.name}
-                  </label>
-                  {attr.field_type === 'select' ? (
-                    <select className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-orange-500 focus:border-transparent">
-                      <option value="">All {attr.name}</option>
-                      {attr.options.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.display_value}
-                        </option>
-                      ))}
-                    </select>
-                  ) : attr.field_type === 'multiselect' ? (
-                    <div className="space-y-2 max-h-32 overflow-y-auto">
-                      {attr.options.map((option) => (
-                        <label key={option.value} className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            value={option.value}
-                            className="w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500"
-                          />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">
-                            {option.display_value}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  ) : null}
-                  {attr.help_text && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      {attr.help_text}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
         </section>
       )}
 
