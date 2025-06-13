@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useCart } from '@/hooks/useCart';
 import { formatPrice, getSpiceLevelIcon } from '@/lib/utils';
 
@@ -19,10 +20,13 @@ export default function ProductCard({ product }) {
       <Link href={`/products/${product.slug}`}>
         <div className="relative h-48 sm:h-56 lg:h-64 bg-gradient-to-br from-orange-100 to-red-100 dark:from-gray-700 dark:to-gray-600 overflow-hidden cursor-pointer">
           {product.primary_image ? (
-            <img
+            <Image
               src={product.primary_image}
               alt={product.name}
-              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              className="object-cover group-hover:scale-110 transition-transform duration-500"
+              priority={false}
             />
           ) : (
             <div className="flex items-center justify-center h-full">

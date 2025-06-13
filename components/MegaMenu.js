@@ -385,7 +385,7 @@ export default function MegaMenu({ isMobile = false }) {
                     <div className="flex items-center justify-center gap-8">
                       <Link href="/offers" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors" onClick={handleLinkClick}>
                         <span className="text-lg">🏷️</span>
-                        <span className="font-medium">Today's Offers</span>
+                        <span className="font-medium">Today&apos;s Offers</span>
                       </Link>
                       <Link href="/new-arrivals" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors" onClick={handleLinkClick}>
                         <span className="text-lg">✨</span>
