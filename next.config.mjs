@@ -14,8 +14,28 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
-      // Add any other image domains you might use
     ],
+  },
+  // Fix for fs module issues
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        fs: false,
+        path: false,
+        os: false,
+      };
+    }
+    return config;
+  },
+  // Experimental features for Turbopack
+  experimental: {
+    turbo: {
+      resolveAlias: {
+        fs: false,
+        path: false,
+        os: false,
+      },
+    },
   },
 };
 
