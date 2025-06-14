@@ -29,7 +29,7 @@ export default function RootLayout({ children }) {
       >
         <CartProvider>
           <Navbar />
-          <main className="min-h-screen"> {/* Removed pt-16 to eliminate gray gap */}
+          <main className="min-h-screen pt-16"> {/* Added pt-16 for navbar spacing */}
             {children}
           </main>
           <Footer />
