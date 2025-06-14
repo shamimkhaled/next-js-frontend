@@ -16,7 +16,7 @@ const nextConfig = {
       },
     ],
   },
-  // Fix for fs module issues
+  // Fix for fs module issues in webpack (for regular builds)
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -26,16 +26,6 @@ const nextConfig = {
       };
     }
     return config;
-  },
-  // Experimental features for Turbopack
-  experimental: {
-    turbo: {
-      resolveAlias: {
-        fs: false,
-        path: false,
-        os: false,
-      },
-    },
   },
 };
 
