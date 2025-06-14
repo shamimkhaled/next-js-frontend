@@ -1,3 +1,4 @@
+// components/MegaMenu.js - UPDATED TO REDIRECT TO FILTER VIEW
 'use client';
 
 import Link from 'next/link';
@@ -91,6 +92,16 @@ export default function Navbar() {
     }, 300);
   };
 
+  // ✅ UPDATED: Get filter URL for category
+  const getFilterUrl = (category) => {
+    return `/category/${category.slug}/filters`;
+  };
+
+  // ✅ UPDATED: Get category URL (for specific cases where we want category page)
+  const getCategoryUrl = (category) => {
+    return `/category/${category.slug}`;
+  };
+
   const renderMobileCategory = (category, level = 0) => {
     const hasChildren = category.children && category.children.length > 0;
     const isExpanded = expandedMobileCategories[category.id];
@@ -106,45 +117,66 @@ export default function Navbar() {
                   ...prev,
                   [category.id]: !prev[category.id]
                 }))}
-                className="w-full text-left flex items-center justify-between py-2 px-3 rounded-lg hover:bg-orange-50 transition-colors"
+                className="w-full text-left flex items-center justify-between py-2 px-3 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <span className="text-lg">{getCategoryIcon(category.name)}</span>
-                  <span className="font-medium">{category.name}</span>
+                  <span className="font-medium text-gray-800 dark:text-white">{category.name}</span>
                   {totalProducts > 0 && (
                     <span className="text-xs text-gray-500">({totalProducts})</span>
                   )}
                 </div>
                 <svg 
-                  className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                  className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                   fill="none" 
                   stroke="currentColor" 
                   viewBox="0 0 24 24"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
             ) : (
+              // ✅ UPDATED: Mobile category links go to filter page
               <Link
-                href={`/category/${category.slug}`}
-                className="block py-2 px-3 rounded-lg hover:bg-orange-50 transition-colors"
+                href={getFilterUrl(category)}
+                className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">{getCategoryIcon(category.name)}</span>
-                  <span className="font-medium">{category.name}</span>
-                  {totalProducts > 0 && (
-                    <span className="text-xs text-gray-500">({totalProducts})</span>
-                  )}
-                </div>
+                <span className="text-lg">{getCategoryIcon(category.name)}</span>
+                <span className="font-medium text-gray-800 dark:text-white">{category.name}</span>
+                {totalProducts > 0 && (
+                  <span className="text-xs text-gray-500">({totalProducts})</span>
+                )}
+                <span className="ml-auto text-xs text-orange-500">🔍</span>
               </Link>
             )}
           </div>
         </div>
-        
+
+        {/* ✅ UPDATED: Show both options for parent categories */}
+        {hasChildren && (
+          <div className="ml-8 mb-2 flex gap-2">
+            <Link
+              href={getFilterUrl(category)}
+              className="text-xs px-2 py-1 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 transition-colors"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              🔍 Filter All {category.name}
+            </Link>
+            <Link
+              href={getCategoryUrl(category)}
+              className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              📄 View Category
+            </Link>
+          </div>
+        )}
+
+        {/* Expanded children */}
         {hasChildren && isExpanded && (
-          <div className="ml-4 border-l-2 border-orange-100">
-            {category.children.map(child => renderMobileCategory(child, level + 1))}
+          <div className="ml-4 mt-2 space-y-1">
+            {category.children.map((child) => renderMobileCategory(child, level + 1))}
           </div>
         )}
       </div>
@@ -152,278 +184,298 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-white dark:bg-gray-900 shadow-lg sticky top-0 z-50">
-      <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 text-2xl font-bold text-orange-500">
-            <span>🍛</span>
-            <span className="hidden sm:inline">FoodDelivery</span>
-          </Link>
+    <>
+      {/* Navigation Bar */}
+      <nav className="bg-white dark:bg-gray-900 shadow-lg border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
+            <Link href="/" className="flex items-center space-x-2">
+              <span className="text-2xl">🍽️</span>
+              <span className="text-xl font-bold text-orange-500">FoodieHub</span>
+            </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center gap-4">
-            {/* Categories Mega Menu */}
-            <div 
-              ref={menuRef}
-              className="relative"
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-            >
-              <button
-                onClick={() => setMenuOpen(!menuOpen)}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-300 shadow-md hover:shadow-lg"
+            {/* Desktop Navigation */}
+            <div className="hidden lg:flex items-center space-x-8">
+              <Link href="/" className="text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors">
+                Home
+              </Link>
+              
+              {/* Categories Dropdown */}
+              <div 
+                className="relative"
+                ref={menuRef}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-                <span>All Categories</span>
-                <svg className={`w-4 h-4 transition-transform ${menuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
+                <button className="flex items-center space-x-1 text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors">
+                  <span>Categories</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
 
-              {/* Enhanced Desktop Mega Menu */}
-              {menuOpen && (
-                <div 
-                  className="absolute left-0 top-full mt-2 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 animate-fade-in"
-                  style={{ minWidth: '900px', maxHeight: '80vh', overflowY: 'auto' }}
-                >
-                  {loading ? (
-                    <div className="p-12 text-center">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
-                      <p className="mt-4 text-gray-600">Loading delicious categories...</p>
-                    </div>
-                  ) : (
-                    <div className="p-8">
-                      {/* Main Categories Grid */}
-                      <div className="grid grid-cols-3 gap-8">
-                        {/* Food & Beverages Section */}
-                        {foodCategory && foodCategory.children && (
-                          <div className="col-span-3">
-                            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-200">
-                              <span className="text-3xl">{getCategoryIcon(foodCategory.name)}</span>
-                              <h3 className="text-2xl font-bold text-gray-800 dark:text-white">{foodCategory.name}</h3>
-                              <span className="text-sm text-gray-500">({getTotalProducts(foodCategory)} items)</span>
-                            </div>
-                            
-                            <div className="grid grid-cols-3 gap-6">
-                              {foodCategory.children.map((category) => {
-                                const totalProducts = getTotalProducts(category);
-                                const hasSubcategories = category.children && category.children.length > 0;
-                                
-                                return (
-                                  <div
-                                    key={category.id}
-                                    className="relative"
-                                    onMouseEnter={() => setHoveredCategory(category.id)}
-                                    onMouseLeave={() => setHoveredCategory(null)}
+                {/* Mega Menu */}
+                {menuOpen && (
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-screen max-w-6xl bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50">
+                    {loading ? (
+                      <div className="p-12 text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+                        <p className="mt-4 text-gray-600 dark:text-gray-400">Loading delicious categories...</p>
+                      </div>
+                    ) : (
+                      <div className="p-8">
+                        {/* Main Categories Grid */}
+                        <div className="grid grid-cols-3 gap-8">
+                          {/* Food & Beverages Section */}
+                          {foodCategory && foodCategory.children && (
+                            <div className="col-span-3">
+                              <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-3xl">{getCategoryIcon(foodCategory.name)}</span>
+                                  <h3 className="text-2xl font-bold text-gray-800 dark:text-white">{foodCategory.name}</h3>
+                                  <span className="text-sm text-gray-500">({getTotalProducts(foodCategory)} items)</span>
+                                </div>
+                                {/* ✅ UPDATED: Prominent filter button for main food category */}
+                                <div className="flex gap-2">
+                                  <Link
+                                    href={getFilterUrl(foodCategory)}
+                                    className="bg-orange-500 hover:bg-orange-600 text-white text-sm px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+                                    onClick={() => setMenuOpen(false)}
                                   >
-                                    {/* Main Category Card */}
-                                    <div className="p-4 rounded-xl bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 hover:from-orange-50 hover:to-orange-100 dark:hover:from-orange-900 dark:hover:to-orange-800 transition-all duration-300 shadow-sm hover:shadow-lg">
-                                      <Link
-                                        href={`/category/${category.slug}`}
-                                        className="block"
-                                        onClick={() => setMenuOpen(false)}
-                                      >
-                                        <div className="flex items-center gap-3 mb-2">
-                                          <span className="text-2xl">{getCategoryIcon(category.name)}</span>
-                                          <h4 className="font-semibold text-gray-800 dark:text-white">{category.name}</h4>
+                                    🔍 Filter All {foodCategory.name}
+                                  </Link>
+                                  <Link
+                                    href={getCategoryUrl(foodCategory)}
+                                    className="bg-gray-500 hover:bg-gray-600 text-white text-sm px-4 py-2 rounded-lg transition-colors"
+                                    onClick={() => setMenuOpen(false)}
+                                  >
+                                    📄 View Category
+                                  </Link>
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-3 gap-6">
+                                {foodCategory.children.map((category) => {
+                                  const totalProducts = getTotalProducts(category);
+                                  const hasSubcategories = category.children && category.children.length > 0;
+                                  
+                                  return (
+                                    <div
+                                      key={category.id}
+                                      className="relative"
+                                      onMouseEnter={() => setHoveredCategory(category.id)}
+                                      onMouseLeave={() => setHoveredCategory(null)}
+                                    >
+                                      {/* ✅ UPDATED: Main category card with filter as primary action */}
+                                      <div className="p-4 rounded-xl bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 hover:from-orange-50 hover:to-orange-100 dark:hover:from-orange-900 dark:hover:to-orange-800 transition-all duration-300 shadow-sm hover:shadow-lg">
+                                        {/* ✅ PRIMARY: Filter link */}
+                                        <Link
+                                          href={getFilterUrl(category)}
+                                          className="block"
+                                          onClick={() => setMenuOpen(false)}
+                                        >
+                                          <div className="flex items-center gap-3 mb-2">
+                                            <span className="text-2xl">{getCategoryIcon(category.name)}</span>
+                                            <div className="flex-1">
+                                              <h4 className="font-semibold text-gray-800 dark:text-white">{category.name}</h4>
+                                              <p className="text-sm text-gray-600 dark:text-gray-300">
+                                                {totalProducts} items
+                                                {hasSubcategories && ` • ${category.children.length} subcategories`}
+                                              </p>
+                                            </div>
+                                            <span className="text-orange-500 font-bold">🔍</span>
+                                          </div>
+                                        </Link>
+                                        
+                                        {/* ✅ SECONDARY: Both filter and category options */}
+                                        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 flex gap-2">
+                                          <Link
+                                            href={getFilterUrl(category)}
+                                            className="flex-1 text-center text-xs py-1 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 transition-colors"
+                                            onClick={() => setMenuOpen(false)}
+                                          >
+                                            🔍 Filter
+                                          </Link>
+                                          <Link
+                                            href={getCategoryUrl(category)}
+                                            className="flex-1 text-center text-xs py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                                            onClick={() => setMenuOpen(false)}
+                                          >
+                                            📄 Browse
+                                          </Link>
                                         </div>
-                                        <p className="text-sm text-gray-600 dark:text-gray-300">
-                                          {totalProducts} items
-                                          {hasSubcategories && ` • ${category.children.length} subcategories`}
-                                        </p>
-                                      </Link>
-                                      
-                                      {/* Subcategories Preview */}
-                                      {hasSubcategories && (
-                                        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
-                                          <div className="space-y-1">
-                                            {category.children.slice(0, 3).map((subcat) => (
-                                              <Link
-                                                key={subcat.id}
-                                                href={`/category/${subcat.slug}`}
-                                                className="block text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors"
-                                                onClick={() => setMenuOpen(false)}
-                                              >
-                                                • {subcat.name} {subcat.product_count > 0 && `(${subcat.product_count})`}
-                                              </Link>
+                                        
+                                        {/* Subcategories Preview */}
+                                        {hasSubcategories && (
+                                          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                                            <div className="space-y-1">
+                                              {category.children.slice(0, 3).map((subcat) => (
+                                                <div key={subcat.id} className="flex items-center justify-between">
+                                                  {/* ✅ UPDATED: Subcategory links go to filter by default */}
+                                                  <Link
+                                                    href={getFilterUrl(subcat)}
+                                                    className="block text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors flex-1"
+                                                    onClick={() => setMenuOpen(false)}
+                                                  >
+                                                    • {subcat.name} {subcat.product_count > 0 && `(${subcat.product_count})`}
+                                                  </Link>
+                                                  <span className="text-xs text-orange-500 ml-1">🔍</span>
+                                                </div>
+                                              ))}
+                                              {category.children.length > 3 && (
+                                                <Link
+                                                  href={getFilterUrl(category)}
+                                                  className="block text-xs text-orange-500 hover:text-orange-600 mt-1 transition-colors"
+                                                  onClick={() => setMenuOpen(false)}
+                                                >
+                                                  🔍 View all {category.children.length} subcategories →
+                                                </Link>
+                                              )}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* ✅ UPDATED: Expanded subcategories on hover with filter links */}
+                                      {hasSubcategories && hoveredCategory === category.id && category.children.length > 3 && (
+                                        <div 
+                                          className="absolute left-0 top-full mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 z-60"
+                                          onMouseEnter={() => setHoveredCategory(category.id)}
+                                          onMouseLeave={() => setHoveredCategory(null)}
+                                        >
+                                          <h5 className="font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
+                                            <span>{getCategoryIcon(category.name)}</span>
+                                            {category.name} Subcategories
+                                          </h5>
+                                          <div className="space-y-2 max-h-64 overflow-y-auto">
+                                            {category.children.map((subcat) => (
+                                              <div key={subcat.id} className="flex items-center justify-between">
+                                                <Link
+                                                  href={getFilterUrl(subcat)}
+                                                  className="block py-2 px-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900 hover:text-orange-600 dark:hover:text-orange-400 rounded transition-colors flex-1"
+                                                  onClick={() => setMenuOpen(false)}
+                                                >
+                                                  <div className="flex justify-between items-center">
+                                                    <span>{subcat.name}</span>
+                                                    {subcat.product_count > 0 && (
+                                                      <span className="text-xs text-gray-500">{subcat.product_count}</span>
+                                                    )}
+                                                  </div>
+                                                </Link>
+                                                <span className="text-xs text-orange-500 ml-1">🔍</span>
+                                              </div>
                                             ))}
-                                            {category.children.length > 3 && (
-                                              <span className="block text-xs text-gray-500 dark:text-gray-500 mt-1">
-                                                +{category.children.length - 3} more...
-                                              </span>
-                                            )}
+                                          </div>
+                                          {/* ✅ UPDATED: Filter all button in expanded view */}
+                                          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 flex gap-2">
+                                            <Link
+                                              href={getFilterUrl(category)}
+                                              className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-xs py-2 px-3 rounded transition-colors text-center"
+                                              onClick={() => setMenuOpen(false)}
+                                            >
+                                              🔍 Filter All {category.name}
+                                            </Link>
+                                            <Link
+                                              href={getCategoryUrl(category)}
+                                              className="flex-1 bg-gray-500 hover:bg-gray-600 text-white text-xs py-2 px-3 rounded transition-colors text-center"
+                                              onClick={() => setMenuOpen(false)}
+                                            >
+                                              📄 Browse
+                                            </Link>
                                           </div>
                                         </div>
                                       )}
                                     </div>
-
-                                    {/* Expanded Subcategories on Hover */}
-                                    {hasSubcategories && hoveredCategory === category.id && category.children.length > 3 && (
-                                      <div 
-                                        className="absolute left-0 top-full mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 z-60"
-                                        onMouseEnter={() => setHoveredCategory(category.id)}
-                                        onMouseLeave={() => setHoveredCategory(null)}
-                                      >
-                                        <h5 className="font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
-                                          <span>{getCategoryIcon(category.name)}</span>
-                                          {category.name} Subcategories
-                                        </h5>
-                                        <div className="space-y-2 max-h-64 overflow-y-auto">
-                                          {category.children.map((subcat) => (
-                                            <Link
-                                              key={subcat.id}
-                                              href={`/category/${subcat.slug}`}
-                                              className="block py-2 px-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900 hover:text-orange-600 dark:hover:text-orange-400 rounded transition-colors"
-                                              onClick={() => setMenuOpen(false)}
-                                            >
-                                              <div className="flex justify-between items-center">
-                                                <span>{subcat.name}</span>
-                                                {subcat.product_count > 0 && (
-                                                  <span className="text-xs text-gray-500">{subcat.product_count}</span>
-                                                )}
-                                              </div>
-                                              {subcat.children && subcat.children.length > 0 && (
-                                                <div className="ml-4 mt-1 space-y-1">
-                                                  {subcat.children.map((subsubcat) => (
-                                                    <div key={subsubcat.id} className="text-xs text-gray-500 dark:text-gray-400">
-                                                      • {subsubcat.name}
-                                                    </div>
-                                                  ))}
-                                                </div>
-                                              )}
-                                            </Link>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
+                                  );
+                                })}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
 
-                        {/* Other Top-Level Categories */}
-                        {categories.filter(cat => cat.id !== foodCategory?.id).map((category) => (
-                          <div key={category.id} className="col-span-1">
-                            <Link
-                              href={`/category/${category.slug}`}
-                              className="block p-4 rounded-lg bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-                              onClick={() => setMenuOpen(false)}
-                            >
-                              <div className="flex items-center gap-3">
-                                <span className="text-2xl">{getCategoryIcon(category.name)}</span>
-                                <div>
-                                  <h4 className="font-semibold text-gray-800 dark:text-white">{category.name}</h4>
-                                  {getTotalProducts(category) > 0 && (
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                                      {getTotalProducts(category)} items
-                                    </p>
-                                  )}
+                          {/* ✅ UPDATED: Other top-level categories with filter as primary */}
+                          {categories.filter(cat => cat.id !== foodCategory?.id).map((category) => (
+                            <div key={category.id} className="col-span-1">
+                              <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                                {/* ✅ PRIMARY: Filter link */}
+                                <Link
+                                  href={getFilterUrl(category)}
+                                  className="block"
+                                  onClick={() => setMenuOpen(false)}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-2xl">{getCategoryIcon(category.name)}</span>
+                                    <div className="flex-1">
+                                      <h4 className="font-semibold text-gray-800 dark:text-white">{category.name}</h4>
+                                      {getTotalProducts(category) > 0 && (
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                                          {getTotalProducts(category)} items
+                                        </p>
+                                      )}
+                                    </div>
+                                    <span className="text-orange-500 font-bold">🔍</span>
+                                  </div>
+                                </Link>
+                                
+                                {/* ✅ SECONDARY: Both options */}
+                                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 flex gap-2">
+                                  <Link
+                                    href={getFilterUrl(category)}
+                                    className="flex-1 text-center text-xs py-1 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 transition-colors"
+                                    onClick={() => setMenuOpen(false)}
+                                  >
+                                    🔍 Filter
+                                  </Link>
+                                  <Link
+                                    href={getCategoryUrl(category)}
+                                    className="flex-1 text-center text-xs py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                                    onClick={() => setMenuOpen(false)}
+                                  >
+                                    📄 Browse
+                                  </Link>
                                 </div>
                               </div>
-                            </Link>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Quick Actions */}
-                      <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-                        <div className="flex justify-between items-center">
-                          <Link
-                            href="/categories"
-                            className="text-orange-500 hover:text-orange-600 font-medium flex items-center gap-2"
-                            onClick={() => setMenuOpen(false)}
-                          >
-                            <span>View All Categories</span>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </Link>
-                          <div className="flex gap-4">
-                            <Link
-                              href="/offers"
-                              className="text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 flex items-center gap-1"
-                              onClick={() => setMenuOpen(false)}
-                            >
-                              <span>🏷️</span> Special Offers
-                            </Link>
-                            <Link
-                              href="/new-arrivals"
-                              className="text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 flex items-center gap-1"
-                              onClick={() => setMenuOpen(false)}
-                            >
-                              <span>✨</span> New Arrivals
-                            </Link>
-                          </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              )}
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <Link href="/menu" className="text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors">
+                Menu
+              </Link>
+              <Link href="/offers" className="text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors">
+                Offers
+              </Link>
+              <Link href="/about" className="text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors">
+                About
+              </Link>
+              <Link href="/contact" className="text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors">
+                Contact
+              </Link>
             </div>
 
-            {/* Other Nav Links */}
-            <Link href="/menu" className="text-gray-700 dark:text-gray-300 hover:text-orange-500 font-medium">
-              Menu
-            </Link>
-            <Link href="/offers" className="text-gray-700 dark:text-gray-300 hover:text-orange-500 font-medium">
-              Offers
-            </Link>
-            <Link href="/about" className="text-gray-700 dark:text-gray-300 hover:text-orange-500 font-medium">
-              About
-            </Link>
-            <Link href="/contact" className="text-gray-700 dark:text-gray-300 hover:text-orange-500 font-medium">
-              Contact
-            </Link>
-          </div>
-
-          {/* Right Side Actions */}
-          <div className="flex items-center gap-4">
-            {/* Search */}
-            <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </button>
-
-            {/* Cart */}
-            <Link href="/cart" className="relative p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                3
-              </span>
-            </Link>
-
-            {/* User */}
-            <Link href="/account" className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </Link>
-
             {/* Mobile Menu Toggle */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {mobileMenuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
-            </button>
+            <div className="lg:hidden">
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {mobileMenuOpen ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  )}
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </nav>
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
@@ -442,69 +494,71 @@ export default function Navbar() {
                 </button>
               </div>
 
+              {/* ✅ UPDATED: Quick filter access section */}
+              <div className="mb-6 p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">🔍 Quick Filter Access</h3>
+                {foodCategory && (
+                  <Link
+                    href={getFilterUrl(foodCategory)}
+                    className="w-full mb-2 bg-orange-500 hover:bg-orange-600 text-white text-sm py-2 px-4 rounded-lg transition-colors block text-center"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Filter {foodCategory.name}
+                  </Link>
+                )}
+                <p className="text-xs text-gray-600 dark:text-gray-400">Categories now go directly to filters for better shopping experience</p>
+              </div>
+
               {/* Mobile Categories */}
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Categories</h3>
                 {loading ? (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Loading...</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {categories.map(category => renderMobileCategory(category))}
+                    {categories.map((category) => renderMobileCategory(category))}
                   </div>
                 )}
               </div>
 
-              {/* Mobile Navigation Links */}
-              <div className="space-y-2 mb-6">
+              {/* Other Menu Items */}
+              <div className="space-y-2">
                 <Link 
                   href="/menu" 
-                  className="block px-4 py-3 text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:text-orange-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Menu
                 </Link>
                 <Link 
                   href="/offers" 
-                  className="block px-4 py-3 text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:text-orange-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Offers
                 </Link>
                 <Link 
                   href="/about" 
-                  className="block px-4 py-3 text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:text-orange-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   About
                 </Link>
                 <Link 
                   href="/contact" 
-                  className="block px-4 py-3 text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:text-orange-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Contact
-                </Link>
-              </div>
-
-              {/* User Actions */}
-              <div className="border-t pt-6">
-                <Link 
-                  href="/account" 
-                  className="flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  <span>My Account</span>
                 </Link>
               </div>
             </div>
           </div>
         </div>
       )}
-    </nav>
+    </>
   );
 }
