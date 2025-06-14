@@ -1,6 +1,7 @@
 // app/layout.js
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "../tailwind.config.css"; // Add this import
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { CartProvider } from "@/contexts/CartContext";
@@ -29,7 +30,7 @@ export default function RootLayout({ children }) {
       >
         <CartProvider>
           <Navbar />
-          <main className="min-h-screen">
+          <main className="min-h-screen pt-16"> {/* Added pt-16 for navbar spacing */}
             {children}
           </main>
           <Footer />
