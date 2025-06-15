@@ -102,7 +102,7 @@ body {
   overflow-x: hidden; /* Prevent horizontal scrolling from mega menus */
 }
 
-/* Mega Menu Animations and Enhancements */
+/* === ANIMATIONS === */
 @keyframes slideInFromTop {
   from {
     opacity: 0;
@@ -132,6 +132,11 @@ body {
     opacity: 1;
     transform: translateX(0);
   }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 /* Animation classes */
@@ -208,11 +213,6 @@ body {
   border-top-color: currentColor;
   border-radius: 50%;
   animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
 }
 
 /* Custom scrollbar for mobile menu and mega menu content */
@@ -380,214 +380,6 @@ button, a, [role="button"] {
 .stagger-animation > *:nth-child(5) { animation-delay: 0.5s; }
 .stagger-animation > *:nth-child(6) { animation-delay: 0.6s; }
 
-/* === SMART MEGA MENU POSITIONING === */
-
-/* Ensure mega menu doesn't overflow viewport */
-.mega-menu-container {
-  max-width: calc(100vw - 2rem);
-  box-sizing: border-box;
-}
-
-/* Responsive mega menu adjustments */
-@media (max-width: 1400px) {
-  .mega-menu-container {
-    max-width: calc(100vw - 4rem);
-  }
-}
-
-@media (max-width: 1200px) {
-  .mega-menu-container {
-    max-width: calc(100vw - 6rem);
-  }
-}
-
-@media (max-width: 1024px) {
-  .mega-menu-container {
-    max-width: calc(100vw - 8rem);
-  }
-}
-
-/* Smart positioning utility classes */
-.position-left {
-  left: 0 !important;
-  transform: none !important;
-}
-
-.position-right {
-  right: 0 !important;
-  left: auto !important;
-  transform: none !important;
-}
-
-.position-center {
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-}
-
-/* Smooth transitions for positioning changes */
-.mega-menu-dropdown {
-  transition: all 0.2s ease-out;
-  z-index: 100;
-}
-
-/* Ensure proper z-index stacking */
-.navbar-container {
-  position: relative;
-  z-index: 50;
-}
-
-/* Prevent text selection on navigation elements */
-.navbar-container button,
-.navbar-container a {
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-}
-
-/* Better mobile touch targets */
-@media (max-width: 1024px) {
-  .navbar-container button,
-  .navbar-container a {
-    min-height: 44px;
-    min-width: 44px;
-  }
-}
-
-/* Ensure mega menu content is always readable */
-.mega-menu-content {
-  min-height: 200px;
-  max-height: 80vh;
-  overflow-y: auto;
-}
-
-/* Grid layout improvements for different screen sizes */
-.mega-menu-grid {
-  display: grid;
-  gap: 1.5rem;
-}
-
-@media (min-width: 640px) {
-  .mega-menu-grid-sm {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 768px) {
-  .mega-menu-grid-md {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (min-width: 1024px) {
-  .mega-menu-grid-lg {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-@media (min-width: 1280px) {
-  .mega-menu-grid-xl {
-    grid-template-columns: repeat(5, 1fr);
-  }
-}
-
-/* Prevent layout shift during mega menu loading */
-.mega-menu-placeholder {
-  height: 400px;
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: loading 1.5s infinite;
-}
-
-@keyframes loading {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-.dark .mega-menu-placeholder {
-  background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
-  background-size: 200% 100%;
-}
-
-/* Better text contrast for accessibility */
-@media (prefers-contrast: high) {
-  .mega-menu-container {
-    border: 2px solid currentColor;
-  }
-  
-  .category-card-hover {
-    border: 2px solid currentColor;
-  }
-  
-  .shadow-soft,
-  .shadow-medium,
-  .shadow-strong {
-    box-shadow: none;
-    border: 2px solid currentColor;
-  }
-}
-
-/* Responsive text sizing */
-@media (max-width: 640px) {
-  .responsive-text-lg {
-    font-size: 1rem;
-    line-height: 1.5rem;
-  }
-  
-  .responsive-text-xl {
-    font-size: 1.125rem;
-    line-height: 1.75rem;
-  }
-  
-  .responsive-text-2xl {
-    font-size: 1.25rem;
-    line-height: 1.75rem;
-  }
-  
-  .mobile-text-sm {
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-  }
-  
-  .mobile-text-base {
-    font-size: 1rem;
-    line-height: 1.5rem;
-  }
-  
-  .mobile-text-lg {
-    font-size: 1.125rem;
-    line-height: 1.75rem;
-  }
-  
-  .mobile-p-4 {
-    padding: 1rem;
-  }
-  
-  .mobile-gap-3 {
-    gap: 0.75rem;
-  }
-}
-
-/* Enhanced grid layouts */
-.grid-auto-fit {
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-}
-
-.grid-auto-fill {
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-}
-
-/* Utility classes for mega menu */
-.mega-menu-container {
-  max-height: 85vh;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--primary-color) transparent;
-}
-
 /* Enhanced typography */
 .text-balance {
   text-wrap: balance;
@@ -631,12 +423,166 @@ button, a, [role="button"] {
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Reduced motion for accessibility */
+/* === MEGA MENU GRID - 3 COLUMNS LAYOUT === */
+.mega-menu-grid {
+  display: grid !important;
+  grid-template-columns: repeat(1, 1fr) !important;
+  gap: 1.5rem !important;
+}
+
+.mega-menu-grid-loading {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 1.5rem !important;
+}
+
+/* Responsive grid for mega menu */
+@media (min-width: 640px) {
+  .mega-menu-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .mega-menu-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+/* Force 3 columns max - override any conflicting styles */
+@media (min-width: 1280px) {
+  .mega-menu-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+@media (min-width: 1536px) {
+  .mega-menu-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+/* === NAVBAR LAYOUT STYLES === */
+.navbar-container {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+/* Prevent text selection on navigation elements */
+.navbar-container button,
+.navbar-container a {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+}
+
+/* Better mobile touch targets */
+@media (max-width: 1024px) {
+  .navbar-container button,
+  .navbar-container a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* === MEGA MENU DROPDOWN POSITIONING === */
+.mega-menu-dropdown {
+  position: absolute !important;
+  z-index: 100 !important;
+  box-sizing: border-box !important;
+}
+
+/* Smart responsive behavior for mega menus */
+@media (max-width: 1400px) {
+  .mega-menu-dropdown {
+    max-width: calc(100vw - 60px) !important;
+  }
+}
+
+@media (max-width: 1200px) {
+  .mega-menu-dropdown {
+    max-width: calc(100vw - 80px) !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .mega-menu-dropdown {
+    max-width: calc(100vw - 40px) !important;
+    min-width: 320px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .mega-menu-dropdown {
+    max-width: calc(100vw - 20px) !important;
+    min-width: 300px !important;
+    left: 10px !important;
+    right: 10px !important;
+    transform: none !important;
+  }
+}
+
+/* Enhanced scrolling for mega menus only */
+.mega-menu-dropdown {
+  max-height: 85vh !important;
+  overflow-y: auto !important;
+}
+
+/* Custom scrollbar for mega menu dropdowns */
+.mega-menu-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.mega-menu-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mega-menu-dropdown::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.3);
+  border-radius: 3px;
+}
+
+.mega-menu-dropdown::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(156, 163, 175, 0.5);
+}
+
+.dark .mega-menu-dropdown::-webkit-scrollbar-thumb {
+  background-color: rgba(107, 114, 128, 0.3);
+}
+
+.dark .mega-menu-dropdown::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(107, 114, 128, 0.5);
+}
+
+/* Improved animations for mega menu */
+@keyframes megaMenuSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Apply animation to mega menu */
+.mega-menu-dropdown {
+  animation: megaMenuSlideIn 0.2s ease-out forwards;
+}
+
+/* Reduce motion for accessibility */
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  
+  .mega-menu-dropdown {
+    animation: none !important;
+    transition: opacity 0.1s ease-out !important;
   }
 }
 
