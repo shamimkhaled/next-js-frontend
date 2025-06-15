@@ -1,16 +1,258 @@
-// components/Navbar.js - FINAL VERSION: Categories from LEFT, Modern Mobile UI
+// components/Navbar.js - COMPLETE VERSION WITH AUTOCOMPLETE SEARCH
 
 'use client';
 
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
-import { getCategories } from '@/lib/api';
+import { useRouter } from 'next/navigation';
+import { getCategories, searchProductsAutocomplete } from '@/lib/api';
 import { useSettings } from '@/contexts/SettingsContext';
+
+// Autocomplete Search Component
+function AutocompleteSearch({ className = '', onClose }) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  
+  const searchRef = useRef(null);
+  const inputRef = useRef(null);
+  const router = useRouter();
+
+  // Debounced search function
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (query.trim().length > 1) {
+        searchProducts(query);
+      } else {
+        setResults([]);
+        setIsOpen(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [query]);
+
+  // Handle clicks outside component
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setIsOpen(false);
+        setSelectedIndex(-1);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Search function using lib/api.js
+  const searchProducts = async (searchQuery) => {
+    setIsLoading(true);
+    try {
+      const data = await searchProductsAutocomplete(searchQuery);
+      setResults(data);
+      setIsOpen(data.length > 0);
+      setSelectedIndex(-1);
+    } catch (error) {
+      console.error('Search failed:', error);
+      setResults([]);
+      setIsOpen(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    setQuery(e.target.value);
+  };
+
+  const handleKeyDown = (e) => {
+    if (!isOpen) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedIndex(prev => 
+          prev < results.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedIndex(prev => prev > 0 ? prev - 1 : -1);
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedIndex >= 0 && results[selectedIndex]) {
+          selectProduct(results[selectedIndex]);
+        }
+        break;
+      case 'Escape':
+        setIsOpen(false);
+        setSelectedIndex(-1);
+        inputRef.current?.blur();
+        onClose && onClose();
+        break;
+    }
+  };
+
+  const selectProduct = (product) => {
+    router.push(product.url);
+    setQuery('');
+    setIsOpen(false);
+    setSelectedIndex(-1);
+    inputRef.current?.blur();
+    onClose && onClose();
+  };
+
+  const clearSearch = () => {
+    setQuery('');
+    setResults([]);
+    setIsOpen(false);
+    setSelectedIndex(-1);
+    inputRef.current?.focus();
+  };
+
+  const highlightMatch = (text, searchTerm) => {
+    if (!searchTerm) return text;
+    
+    const regex = new RegExp(`(${searchTerm})`, 'gi');
+    const parts = text.split(regex);
+    
+    return parts.map((part, index) => 
+      regex.test(part) ? (
+        <mark key={index} className="bg-yellow-200 dark:bg-yellow-700 text-gray-900 dark:text-white">
+          {part}
+        </mark>
+      ) : (
+        part
+      )
+    );
+  };
+
+  return (
+    <div ref={searchRef} className={`relative ${className}`}>
+      {/* Search Input */}
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+        
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          onFocus={() => query.length > 1 && results.length > 0 && setIsOpen(true)}
+          placeholder="Search products..."
+          className="w-full pl-10 pr-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all duration-200"
+        />
+        
+        {query && (
+          <button
+            onClick={clearSearch}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center hover:text-gray-600 dark:hover:text-gray-300"
+          >
+            <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+        
+        {isLoading && (
+          <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500"></div>
+          </div>
+        )}
+      </div>
+
+      {/* Results Dropdown */}
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl shadow-2xl max-h-80 overflow-y-auto z-50">
+          {results.length > 0 ? (
+            <>
+              <div className="p-3 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
+                {results.length} result{results.length !== 1 ? 's' : ''} found
+              </div>
+              
+              {results.map((product, index) => (
+                <button
+                  key={product.id}
+                  onClick={() => selectProduct(product)}
+                  className={`w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 focus:bg-gray-50 dark:focus:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors duration-150 ${
+                    index === selectedIndex ? 'bg-orange-50 dark:bg-orange-900/20' : ''
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {highlightMatch(product.title, query)}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {product.subtitle}
+                      </div>
+                    </div>
+                    <div className="ml-4 flex-shrink-0">
+                      <span className="text-sm font-semibold text-green-600 dark:text-green-400">
+                        ${product.price}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </>
+          ) : (
+            <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
+              No products found for "{query}"
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Search Modal Component for Mobile
+function SearchModal({ isOpen, onClose }) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 lg:hidden">
+      {/* Backdrop */}
+      <div 
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      
+      {/* Modal */}
+      <div className="fixed inset-x-0 top-0 bg-white dark:bg-gray-900 shadow-2xl p-4">
+        <div className="flex items-center space-x-3 mb-4">
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <div className="flex-1">
+            <AutocompleteSearch onClose={onClose} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Navbar() {
   const { settings } = useSettings();
   const [activeMenu, setActiveMenu] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedMobileCategories, setExpandedMobileCategories] = useState({});
@@ -189,12 +431,12 @@ export default function Navbar() {
       {/* MAIN NAVBAR */}
       <nav className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
         
-        {/* Top Line: Logo + Actions */}
+        {/* Top Line: Logo + Search + Actions */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             
             {/* LEFT: Logo and Brand */}
-            <Link href="/" className="flex items-center space-x-3">
+            <Link href="/" className="flex items-center space-x-3 flex-shrink-0">
               <div className="relative">
                 {settings?.logo ? (
                   <img 
@@ -223,11 +465,19 @@ export default function Navbar() {
               </div>
             </Link>
 
+            {/* CENTER: Search Bar (Desktop Only) */}
+            <div className="hidden lg:block flex-1 max-w-md mx-8">
+              <AutocompleteSearch />
+            </div>
+
             {/* RIGHT: Actions */}
             <div className="flex items-center space-x-2">
               
-              {/* Search */}
-              <button className="hidden lg:block p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors">
+              {/* Search Button (Mobile/Tablet) */}
+              <button 
+                onClick={() => setSearchModalOpen(true)}
+                className="lg:hidden p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
+              >
                 <svg className="w-5 h-5 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
@@ -271,7 +521,7 @@ export default function Navbar() {
         {/* Bottom Line: Menu - CATEGORIES START FROM LEFT */}
         <div className="hidden lg:block bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-start h-12 space-x-8">
+            <div className="flex items-center justify-start h-12 space-x-8" ref={menuRef}>
               
               {/* Home */}
               <Link 
@@ -339,6 +589,12 @@ export default function Navbar() {
           </div>
         </div>
       </nav>
+
+      {/* Search Modal (Mobile/Tablet) */}
+      <SearchModal 
+        isOpen={searchModalOpen} 
+        onClose={() => setSearchModalOpen(false)} 
+      />
 
       {/* MODERN MOBILE MENU */}
       {mobileMenuOpen && (
@@ -623,6 +879,21 @@ export default function Navbar() {
           </div>
         </div>
       )}
+
+      {/* Add this CSS to your global CSS file or component */}
+      <style jsx>{`
+        .mega-menu-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 1.5rem;
+        }
+        
+        @media (min-width: 1024px) {
+          .mega-menu-grid {
+            grid-template-columns: repeat(4, 1fr);
+          }
+        }
+      `}</style>
     </>
   );
 }

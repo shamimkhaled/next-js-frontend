@@ -78,7 +78,7 @@ export default async function CategoryPage({ params }) {
       <section className="bg-gradient-to-r from-orange-500 to-red-500 text-white py-16">
         <div className="container mx-auto px-4 text-center">
           {/* Breadcrumb */}
-          <nav className="text-orange-100 text-sm mb-4">
+          <nav className="text-blue-100 text-sm mb-4">
             <Link href="/" className="hover:text-white transition-colors">Home</Link>
             <span className="mx-2">/</span>
             <span>{currentCategory?.name || 'Category'}</span>
