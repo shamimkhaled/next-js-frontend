@@ -1,12 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
+import { useState } from 'react';
 import { useCart } from '@/hooks/useCart';
 import { formatPrice, getSpiceLevelIcon } from '@/lib/utils';
 
 export default function ProductCard({ product }) {
   const { addToCart } = useCart();
+  const [imageError, setImageError] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
 
   const handleAddToCart = () => {
     if (product.is_in_stock) {
@@ -14,38 +16,140 @@ export default function ProductCard({ product }) {
     }
   };
 
+  const handleImageError = () => {
+    setImageError(true);
+    setImageLoading(false);
+  };
+
+  const handleImageLoad = () => {
+    setImageLoading(false);
+    setImageError(false);
+  };
+
+  // Function to check if image URL is valid and not expired
+  const isValidImageUrl = (url) => {
+    if (!url) return false;
+    
+    // Check if it's a Google Cloud signed URL
+    if (url.includes('X-Goog-Expires')) {
+      try {
+        const urlObj = new URL(url);
+        const expiresParam = urlObj.searchParams.get('X-Goog-Expires');
+        const dateParam = urlObj.searchParams.get('X-Goog-Date');
+        
+        if (expiresParam && dateParam) {
+          const expiresSeconds = parseInt(expiresParam);
+          const issueDate = new Date(
+            dateParam.substring(0, 4) + '-' +
+            dateParam.substring(4, 6) + '-' +
+            dateParam.substring(6, 8) + 'T' +
+            dateParam.substring(9, 11) + ':' +
+            dateParam.substring(11, 13) + ':' +
+            dateParam.substring(13, 15) + 'Z'
+          );
+          
+          const expiryDate = new Date(issueDate.getTime() + (expiresSeconds * 1000));
+          const now = new Date();
+          
+          return now < expiryDate;
+        }
+      } catch (error) {
+        console.warn('Error parsing image URL:', error);
+        return false;
+      }
+    }
+    
+    return true;
+  };
+
+  // Get category icon
+  const getCategoryIcon = (categoryName) => {
+    const icons = {
+      'Pizzas': '🍕',
+      'Burgers': '🍔',
+      'Pastas': '🍝',
+      'Desserts': '🍰',
+      'Noodles': '🍜',
+      'Biryanis & Rice': '🍛',
+      'Curries': '🍛',
+      'female': '👕',
+      'Beverages': '🥤',
+      'Salads': '🥗',
+      'Sandwiches': '🥪',
+      'Starters': '🥘',
+      'Soups': '🍲',
+      'Seafood': '🐟',
+      'Chicken': '🍗',
+      'Vegetarian': '🥬',
+      'Snacks': '🍿'
+    };
+    
+    return icons[categoryName] || '🍽️';
+  };
+
+  // Determine which image to show
+  const shouldShowImage = product.primary_image && 
+                         isValidImageUrl(product.primary_image) && 
+                         !imageError;
+
   return (
     <div className="group bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300">
       {/* Product Image */}
       <Link href={`/products/${product.slug}`}>
         <div className="relative h-48 sm:h-56 lg:h-64 bg-gradient-to-br from-orange-100 to-red-100 dark:from-gray-700 dark:to-gray-600 overflow-hidden cursor-pointer">
-          {product.primary_image ? (
-            <Image
-              src={product.primary_image}
-              alt={product.name}
-              fill
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              className="object-cover group-hover:scale-110 transition-transform duration-500"
-              priority={false}
-            />
+          
+          {shouldShowImage ? (
+            <div className="relative w-full h-full">
+              {/* Loading placeholder */}
+              {imageLoading && (
+                <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse flex items-center justify-center">
+                  <div className="text-gray-400 text-2xl">🖼️</div>
+                </div>
+              )}
+              
+              {/* Actual image using regular img tag */}
+              <img
+                src={product.primary_image}
+                alt={product.name}
+                className={`w-full h-full object-cover group-hover:scale-110 transition-all duration-500 ${
+                  imageLoading ? 'opacity-0' : 'opacity-100'
+                }`}
+                onError={handleImageError}
+                onLoad={handleImageLoad}
+                loading="lazy"
+              />
+            </div>
           ) : (
-            <div className="flex items-center justify-center h-full">
-              <span className="text-5xl sm:text-6xl opacity-50">🍛</span>
+            /* Fallback content with product category icon */
+            <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500">
+              <div className="text-4xl sm:text-5xl mb-2">
+                {getCategoryIcon(product.category_name)}
+              </div>
+              <div className="text-xs sm:text-sm font-medium text-center px-2">
+                {product.name}
+              </div>
             </div>
           )}
           
           {/* Stock Badge */}
           {!product.is_in_stock && (
-            <div className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-red-500 text-white px-2 py-1 sm:px-3 rounded-full text-xs sm:text-sm font-semibold">
+            <div className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-red-500 text-white px-2 py-1 sm:px-3 rounded-full text-xs sm:text-sm font-semibold z-10">
               Out of Stock
             </div>
           )}
 
           {/* Rating Badge */}
           {product.rating && (
-            <div className="absolute top-2 left-2 sm:top-4 sm:left-4 bg-black/70 text-white px-2 py-1 sm:px-3 rounded-full text-xs sm:text-sm font-semibold flex items-center gap-1">
+            <div className="absolute top-2 left-2 sm:top-4 sm:left-4 bg-black/70 text-white px-2 py-1 sm:px-3 rounded-full text-xs sm:text-sm font-semibold flex items-center gap-1 z-10">
               <span>⭐</span>
               <span>{product.rating}</span>
+            </div>
+          )}
+
+          {/* Discount Badge */}
+          {product.discount_percentage > 0 && (
+            <div className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-red-500 text-white px-2 py-1 sm:px-3 rounded-full text-xs sm:text-sm font-semibold z-10">
+              -{product.discount_percentage}%
             </div>
           )}
         </div>
@@ -93,33 +197,33 @@ export default function ProductCard({ product }) {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mt-4">
           <div>
             {product.price_range ? (
-              <div>
-                <span className="text-xl sm:text-2xl font-bold text-orange-500">
-                  {formatPrice(product.price_range.min_price)}
-                </span>
-                <span className="text-gray-500 text-xs sm:text-sm"> - {formatPrice(product.price_range.max_price)}</span>
+              <div className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                ${formatPrice(product.price_range.min_price)} - ${formatPrice(product.price_range.max_price)}
               </div>
             ) : (
-              <span className="text-xl sm:text-2xl font-bold text-orange-500">
-                {formatPrice(product.price)}
-              </span>
-            )}
-            {product.preparation_time && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                🕐 {product.preparation_time} mins
-              </p>
+              <div className="flex items-center space-x-2">
+                <span className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                  ${formatPrice(product.sale_price || product.price)}
+                </span>
+                {product.sale_price && product.sale_price < product.price && (
+                  <span className="text-sm text-gray-500 line-through">
+                    ${formatPrice(product.price)}
+                  </span>
+                )}
+              </div>
             )}
           </div>
+
           <button
             onClick={handleAddToCart}
-            className={`w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 rounded-full font-semibold transition-all duration-300 text-sm sm:text-base ${
-              product.is_in_stock
-                ? 'bg-orange-500 text-white hover:bg-orange-600 hover:scale-105 shadow-md hover:shadow-lg'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
             disabled={!product.is_in_stock}
+            className={`px-4 py-2 sm:px-6 sm:py-3 rounded-xl font-medium text-sm sm:text-base transition-all duration-200 ${
+              !product.is_in_stock
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-orange-500 hover:bg-orange-600 text-white hover:shadow-lg'
+            }`}
           >
-            {product.is_in_stock ? 'Add to Cart' : 'Unavailable'}
+            {!product.is_in_stock ? 'Out of Stock' : 'Add to Cart'}
           </button>
         </div>
       </div>

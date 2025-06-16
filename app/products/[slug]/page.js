@@ -459,7 +459,7 @@ export default function ProductDetail() {
               <div className="flex items-center space-x-2 text-sm">
                 <span className="text-gray-500 dark:text-gray-400">Category:</span>
                 <Link 
-                  href={`/categories/${product.category.slug}`}
+                  href={`/category/${product.category.slug}`}
                   className="text-orange-500 hover:text-orange-600 font-medium"
                 >
                   {product.category.full_path || product.category.name}
