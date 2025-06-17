@@ -1,11 +1,13 @@
+// components/ProductsSection.js - Fixed version
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ProductCard from './ProductCard';
 import LoadingSpinner from './LoadingSpinner';
 
-export default function ProductsSection({ initialProducts, categories, currentPage }) {
+// Separate the component that uses searchParams
+function ProductsSectionContent({ initialProducts, categories, currentPage }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -83,20 +85,21 @@ export default function ProductsSection({ initialProducts, categories, currentPa
             onClick={() => setSelectedCategory('all')}
             className={`px-4 sm:px-6 py-2 sm:py-3 rounded-full font-medium transition-all duration-300 text-sm sm:text-base ${
               selectedCategory === 'all'
-                ? 'bg-orange-500 text-white scale-105 shadow-lg'
-                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-orange-100 dark:hover:bg-gray-700'
+                ? 'bg-orange-600 text-white shadow-lg'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
             }`}
           >
-            All Items
+            All Products ({totalCount})
           </button>
+          
           {uniqueCategories.map((category) => (
             <button
               key={category}
               onClick={() => setSelectedCategory(category)}
               className={`px-4 sm:px-6 py-2 sm:py-3 rounded-full font-medium transition-all duration-300 text-sm sm:text-base ${
                 selectedCategory === category
-                  ? 'bg-orange-500 text-white scale-105 shadow-lg'
-                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-orange-100 dark:hover:bg-gray-700'
+                  ? 'bg-orange-600 text-white shadow-lg'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
               }`}
             >
               {category}
@@ -106,112 +109,121 @@ export default function ProductsSection({ initialProducts, categories, currentPa
       </section>
 
       {/* Products Grid */}
-      <section className="container mx-auto px-4 py-12">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-800 dark:text-white">
-            Our Menu
-          </h2>
-          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
-            {selectedCategory === 'all' ? (
-              <>Showing page {currentPage} of {totalPages} ({totalCount} total items)</>
-            ) : (
-              <>Showing {filteredProducts.length} items in {selectedCategory}</>
-            )}
-          </p>
-        </div>
-
-        {loading ? (
-          <LoadingSpinner />
-        ) : (
+      <section className="container mx-auto px-4 pb-16">
+        {loading && <LoadingSpinner />}
+        
+        {!loading && (
           <>
-            {filteredProducts.length === 0 ? (
-              <div className="text-center py-20">
-                <p className="text-xl text-gray-600 dark:text-gray-400 mb-4">
-                  No products found in this category on the current page.
-                </p>
-                <button
-                  onClick={() => setSelectedCategory('all')}
-                  className="text-orange-500 hover:text-orange-600 transition-colors"
-                >
-                  Show all items →
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-white mb-2">
+                {selectedCategory === 'all' ? 'All Products' : selectedCategory}
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400">
+                Showing {filteredProducts.length} of {selectedCategory === 'all' ? totalCount : filteredProducts.length} products
+              </p>
+            </div>
+
+            {filteredProducts.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
                 {filteredProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}
               </div>
+            ) : (
+              <div className="text-center py-16">
+                <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-4xl">🔍</span>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
+                  No products found
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400">
+                  Try selecting a different category or check back later.
+                </p>
+              </div>
             )}
 
-            {/* Pagination - Only show when viewing all items */}
+            {/* Pagination - only show if filtering all products */}
             {selectedCategory === 'all' && totalPages > 1 && (
-              <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
-                <div className="flex items-center gap-2">
+              <div className="flex justify-center mt-12">
+                <nav className="flex items-center space-x-2">
                   {/* Previous Button */}
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={!prevPage || loading}
-                    className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-300 flex items-center gap-1 text-sm sm:text-base ${
-                      !prevPage || loading
-                        ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
-                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-orange-100 dark:hover:bg-gray-700 shadow-md hover:shadow-lg'
+                    disabled={currentPage === 1}
+                    className={`px-3 py-2 rounded-lg font-medium transition-all duration-200 ${
+                      currentPage === 1
+                        ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
                     }`}
                   >
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                    <span className="hidden sm:inline">Previous</span>
+                    Previous
                   </button>
 
                   {/* Page Numbers */}
-                  <div className="flex gap-1 overflow-x-auto max-w-xs sm:max-w-none">
-                    {getPageNumbers().map((page, index) => (
-                      page === '...' ? (
-                        <span key={`dots-${index}`} className="px-2 sm:px-3 py-2 text-gray-500 text-sm sm:text-base">...</span>
-                      ) : (
-                        <button
-                          key={page}
-                          onClick={() => handlePageChange(page)}
-                          disabled={loading}
-                          className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-300 text-sm sm:text-base ${
-                            currentPage === page
-                              ? 'bg-orange-500 text-white shadow-lg scale-105'
-                              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-orange-100 dark:hover:bg-gray-700 shadow-md hover:shadow-lg'
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      )
-                    ))}
-                  </div>
+                  {getPageNumbers().map((pageNum, index) => (
+                    <button
+                      key={index}
+                      onClick={() => typeof pageNum === 'number' && handlePageChange(pageNum)}
+                      disabled={pageNum === '...'}
+                      className={`px-3 py-2 rounded-lg font-medium transition-all duration-200 ${
+                        pageNum === currentPage
+                          ? 'bg-orange-600 text-white shadow-lg'
+                          : pageNum === '...'
+                          ? 'bg-transparent text-gray-400 dark:text-gray-600 cursor-default'
+                          : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
 
                   {/* Next Button */}
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={!nextPage || loading}
-                    className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-300 flex items-center gap-1 text-sm sm:text-base ${
-                      !nextPage || loading
-                        ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
-                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-orange-100 dark:hover:bg-gray-700 shadow-md hover:shadow-lg'
+                    disabled={currentPage === totalPages}
+                    className={`px-3 py-2 rounded-lg font-medium transition-all duration-200 ${
+                      currentPage === totalPages
+                        ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
                     }`}
                   >
-                    <span className="hidden sm:inline">Next</span>
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
+                    Next
                   </button>
-                </div>
-
-                {/* Page Info for Mobile */}
-                <div className="text-sm text-gray-600 dark:text-gray-400 sm:hidden">
-                  Page {currentPage} of {totalPages}
-                </div>
+                </nav>
               </div>
             )}
           </>
         )}
       </section>
     </>
+  );
+}
+
+// Main component that wraps with Suspense
+export default function ProductsSection({ initialProducts, categories, currentPage }) {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto px-4 py-16 text-center">
+        <div className="animate-pulse space-y-8">
+          <div className="flex justify-center space-x-4">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-10 bg-gray-200 dark:bg-gray-700 rounded-full w-24"></div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+              <div key={i} className="h-80 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    }>
+      <ProductsSectionContent 
+        initialProducts={initialProducts}
+        categories={categories}
+        currentPage={currentPage}
+      />
+    </Suspense>
   );
 }
