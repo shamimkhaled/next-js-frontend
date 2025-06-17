@@ -1,11 +1,12 @@
-// app/layout.js - Updated with Authentication Provider
+// app/layout.js - Updated with Context Provider
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Navbar from "@/components/Navbar"; // Your enhanced navbar
+import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { CartProvider } from "@/contexts/CartContext";
+import FloatingCartIcon from "@/components/FloatingCartIcon";
+import { CartProvider } from "@/contexts/CartContext"; // Using Context instead
 import { SettingsProvider } from "@/contexts/SettingsContext";
-import { AuthProvider } from "@/contexts/AuthContext"; // 🆕 Added AuthProvider
+import { AuthProvider } from "@/contexts/AuthContext";
 import { getSettings } from "@/lib/settingsApi";
 
 const geistSans = Geist({
@@ -39,13 +40,14 @@ export default async function RootLayout({ children }) {
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <SettingsProvider initialSettings={initialSettings}>
-          <AuthProvider> {/* 🆕 Wrapped with AuthProvider */}
+          <AuthProvider>
             <CartProvider>
-              <Navbar /> {/* Your enhanced navbar with auth */}
+              <Navbar />
               <main className="min-h-screen pt-2">
                 {children}
               </main>
               <Footer />
+              <FloatingCartIcon />
             </CartProvider>
           </AuthProvider>
         </SettingsProvider>
