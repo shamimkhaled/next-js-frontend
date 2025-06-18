@@ -1,4 +1,4 @@
-// app/products/[slug]/page.js - Product Detail with Proper Variant Support
+// app/products/[slug]/page.js - FIXED Product Detail with Safe Image Handling + Checkout Integration
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -7,6 +7,62 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/contexts/CartContext';
 import { getProducts, getProductBySlug } from '@/lib/api';
+
+// 🔧 SAFE IMAGE URL FUNCTION - HANDLES ALL DATA TYPES
+const getImageUrl = (imageInput) => {
+  console.log('🖼️ Processing image:', { imageInput, type: typeof imageInput });
+  
+  // Handle null/undefined
+  if (imageInput == null) {
+    return '/placeholder-product.jpg';
+  }
+  
+  // Convert to string safely
+  let urlString;
+  try {
+    if (typeof imageInput === 'string') {
+      urlString = imageInput;
+    } else if (typeof imageInput === 'object') {
+      // Handle object with image properties
+      urlString = imageInput.url || imageInput.src || imageInput.image || imageInput.file;
+      if (!urlString) {
+        // Try to stringify the object
+        const stringified = String(imageInput);
+        if (stringified !== '[object Object]') {
+          urlString = stringified;
+        }
+      }
+    } else {
+      urlString = String(imageInput);
+    }
+  } catch (error) {
+    console.error('🖼️ Error converting image to string:', error);
+    return '/placeholder-product.jpg';
+  }
+  
+  // Validate string
+  if (!urlString || typeof urlString !== 'string') {
+    return '/placeholder-product.jpg';
+  }
+  
+  urlString = urlString.trim();
+  
+  if (!urlString) {
+    return '/placeholder-product.jpg';
+  }
+  
+  // Process the URL string
+  if (urlString.startsWith('http://') || urlString.startsWith('https://')) {
+    return urlString;
+  }
+  
+  if (urlString.startsWith('/')) {
+    return urlString;
+  }
+  
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://seashell-app-4gkvz.ondigitalocean.app';
+  return `${baseUrl}/${urlString}`;
+};
 
 // Variant Selector Component
 function VariantSelector({ variants, selectedVariant, onVariantChange, variantAttributes }) {
@@ -67,7 +123,7 @@ function VariantSelector({ variants, selectedVariant, onVariantChange, variantAt
   );
 }
 
-// Enhanced Add to Cart Component with Variant Support
+// 🔧 FIXED Enhanced Add to Cart Component with Proper Checkout Integration
 function EnhancedAddToCart({ product, selectedVariant }) {
   const { addToCart } = useCart();
   const [quantity, setQuantity] = useState(1);
@@ -85,26 +141,57 @@ function EnhancedAddToCart({ product, selectedVariant }) {
   const handleAddToCart = async () => {
     setIsAdding(true);
     
-    // Prepare cart product data
+    // 🔧 PROPER cart product structure for checkout integration
     const cartProduct = {
-      id: selectedVariant ? `${product.id}-${selectedVariant.id}` : product.id,
-      name: product.name || product.title,
+      // Unique cart ID
+      id: selectedVariant ? `${product.id}-${selectedVariant.id}` : product.id.toString(),
+      
+      // Display information
+      name: selectedVariant 
+        ? `${product.name || product.title} - ${selectedVariant.name}`
+        : (product.name || product.title),
+      
       price: getFinalPrice(),
-      image: selectedVariant?.image || product.image || product.primary_image,
+      
+      // 🔑 CRITICAL: Store IDs as integers for checkout API
+      product_id: parseInt(product.id), // Always store original product ID as integer
+      variant_id: selectedVariant ? parseInt(selectedVariant.id) : null, // Integer or null
+      
+      // Other details
+      image: getImageUrl(selectedVariant?.image || product.image || product.primary_image),
       description: product.description || product.short_description,
       category: product.category_name || product.category,
-      variant: selectedVariant ? {
-        id: selectedVariant.id,
-        name: selectedVariant.name,
-        sku: selectedVariant.sku,
-        attributes: selectedVariant.attributes
-      } : null,
-      slug: product.slug
+      slug: product.slug,
+      quantity: 1 // Will be multiplied by quantity below
     };
+    
+    console.log('🛒 Adding to cart:', {
+      cartId: cartProduct.id,
+      name: cartProduct.name,
+      product_id: cartProduct.product_id,
+      variant_id: cartProduct.variant_id,
+      hasVariant: !!selectedVariant,
+      willSendToAPI: selectedVariant ? 'variant_id only' : 'product_id only'
+    });
+    
+    // Validate data before adding to cart
+    if (isNaN(cartProduct.product_id)) {
+      console.error('❌ Invalid product_id:', product.id);
+      alert('Error: Invalid product ID');
+      setIsAdding(false);
+      return;
+    }
+    
+    if (cartProduct.variant_id !== null && isNaN(cartProduct.variant_id)) {
+      console.error('❌ Invalid variant_id:', selectedVariant?.id);
+      alert('Error: Invalid variant ID');
+      setIsAdding(false);
+      return;
+    }
     
     // Add to cart with specified quantity
     for (let i = 0; i < quantity; i++) {
-      addToCart({ ...cartProduct, quantity: 1 });
+      addToCart({ ...cartProduct });
     }
     
     // Show success feedback
@@ -266,7 +353,7 @@ function EnhancedAddToCart({ product, selectedVariant }) {
   );
 }
 
-// Image Gallery Component with Variant Support
+// 🔧 FIXED Image Gallery Component with Safe Image Handling
 function ImageGallery({ images, productName, selectedVariant }) {
   const [selectedImage, setSelectedImage] = useState(0);
   
@@ -300,15 +387,6 @@ function ImageGallery({ images, productName, selectedVariant }) {
   useEffect(() => {
     setSelectedImage(0);
   }, [selectedVariant]);
-
-  const getImageUrl = (imageUrl) => {
-    if (!imageUrl) return '/placeholder-product.jpg';
-    if (imageUrl.startsWith('http')) return imageUrl;
-    if (imageUrl.startsWith('/')) return imageUrl;
-    
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://seashell-app-4gkvz.ondigitalocean.app';
-    return `${baseUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
-  };
 
   return (
     <div className="space-y-4">
@@ -433,15 +511,6 @@ export default function ProductDetail() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const getImageUrl = (imageUrl) => {
-    if (!imageUrl) return '/placeholder-product.jpg';
-    if (imageUrl.startsWith('http')) return imageUrl;
-    if (imageUrl.startsWith('/')) return imageUrl;
-    
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://seashell-app-4gkvz.ondigitalocean.app';
-    return `${baseUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
   };
 
   if (loading) {
@@ -577,7 +646,7 @@ export default function ProductDetail() {
               </div>
             )}
 
-            {/* Variant Selector - This is the key addition! */}
+            {/* Variant Selector */}
             {hasVariants && (
               <VariantSelector 
                 variants={product.variants}

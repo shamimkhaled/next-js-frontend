@@ -1,4 +1,3 @@
-// components/ProductCard.js - Using Context for instant updates
 'use client';
 
 import { useState, useCallback } from 'react';
@@ -11,23 +10,16 @@ const ProductCard = ({ product }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [showAddedFeedback, setShowAddedFeedback] = useState(false);
+  const [selectedVariant, setSelectedVariant] = useState(null);
 
-  // Get proper image URL with fallbacks - defined first
   const getImageUrl = useCallback(() => {
     if (imageError) return '/placeholder-product.jpg';
     
     const productImage = product.image || product.primary_image || product.thumbnail;
     
     if (productImage) {
-      // If it's a relative URL, make it absolute
-      if (productImage.startsWith('/')) {
-        return productImage;
-      }
-      // If it's already absolute, use as is
-      if (productImage.startsWith('http')) {
-        return productImage;
-      }
-      // If it's a relative path without slash, add API base URL
+      if (productImage.startsWith('/')) return productImage;
+      if (productImage.startsWith('http')) return productImage;
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://seashell-app-4gkvz.ondigitalocean.app';
       return `${baseUrl}${productImage.startsWith('/') ? '' : '/'}${productImage}`;
     }
@@ -39,48 +31,118 @@ const ProductCard = ({ product }) => {
     setImageError(true);
   }, []);
 
+  const getPriceDisplay = () => {
+    if (selectedVariant && selectedVariant.price) {
+      return `$${parseFloat(selectedVariant.price).toFixed(2)}`;
+    }
+    
+    if (product.price_range && typeof product.price_range === 'object') {
+      const minPrice = product.price_range.min_price || product.price_range.min || 0;
+      const maxPrice = product.price_range.max_price || product.price_range.max || 0;
+      
+      if (minPrice === maxPrice) {
+        return `$${parseFloat(minPrice).toFixed(2)}`;
+      }
+      return `$${parseFloat(minPrice).toFixed(2)} - $${parseFloat(maxPrice).toFixed(2)}`;
+    }
+    
+    if (product.price_range && typeof product.price_range === 'string') {
+      return product.price_range;
+    }
+    
+    const price = product.price || product.current_price || product.final_price || 0;
+    return `$${parseFloat(price).toFixed(2)}`;
+  };
+
+  const hasPriceRange = () => {
+    return product.price_range && 
+           typeof product.price_range === 'object' && 
+           (product.price_range.min_price !== product.price_range.max_price);
+  };
+
   const handleAddToCart = useCallback(() => {
     if (isAdding || showAddedFeedback) return;
     
-    // If product has price range, navigate to product detail page instead
-    if (product.price_range) {
+    if (product.variants && product.variants.length > 0 && !selectedVariant) {
+      alert('Please select a variant first');
+      return;
+    }
+    
+    if (hasPriceRange() && !selectedVariant) {
       window.location.href = `/products/${product.slug || product.id}`;
       return;
     }
     
     setIsAdding(true);
     
-    // Prepare product data for cart
+    // 🔑 PROPER CART ITEM STRUCTURE
     const cartProduct = {
-      id: product.id,
-      name: product.name || product.title || 'Unnamed Product',
-      price: parseFloat(product.price || product.current_price || product.final_price) || 0,
+      // Unique cart ID for management
+      id: selectedVariant ? `${product.id}-${selectedVariant.id}` : product.id.toString(),
+      
+      // Display information
+      name: selectedVariant 
+        ? `${product.name || product.title} - ${selectedVariant.name}` 
+        : (product.name || product.title || 'Unnamed Product'),
+      
+      price: parseFloat(
+        selectedVariant?.price || 
+        product.price || 
+        product.current_price || 
+        product.final_price ||
+        (product.price_range?.min_price) || 0
+      ),
+      
+      // 🔑 CRITICAL: Store IDs based on variant existence
+      product_id: parseInt(product.id), // Always store original product ID
+      variant_id: selectedVariant ? parseInt(selectedVariant.id) : null, // Only if variant selected
+      
+      // Other details
       image: getImageUrl(),
       description: product.description || product.subtitle || '',
       category: product.category_name || product.category || '',
       brand: product.brand_name || '',
-      slug: product.slug
+      slug: product.slug,
+      quantity: 1
     };
     
-    console.log('Adding to cart:', cartProduct.name); // Debug log
+    console.log('🛒 Adding to cart:', {
+      cartId: cartProduct.id,
+      name: cartProduct.name,
+      product_id: cartProduct.product_id,
+      variant_id: cartProduct.variant_id,
+      hasVariant: selectedVariant !== null,
+      willSendToAPI: selectedVariant ? 'variant_id only' : 'product_id only'
+    });
     
-    // Add to cart - this should trigger immediate updates
+    // Validate data before adding to cart
+    if (isNaN(cartProduct.product_id)) {
+      console.error('❌ Invalid product_id:', product.id);
+      alert('Error: Invalid product ID');
+      setIsAdding(false);
+      return;
+    }
+    
+    if (cartProduct.variant_id !== null && isNaN(cartProduct.variant_id)) {
+      console.error('❌ Invalid variant_id:', selectedVariant?.id);
+      alert('Error: Invalid variant ID');
+      setIsAdding(false);
+      return;
+    }
+    
     addToCart(cartProduct);
     
-    // Show visual feedback
     setShowAddedFeedback(true);
     
-    // Reset visual states faster
     setTimeout(() => {
       setIsAdding(false);
     }, 200);
     
     setTimeout(() => {
       setShowAddedFeedback(false);
-    }, 800);
-  }, [addToCart, product, isAdding, showAddedFeedback, getImageUrl]);
+    }, 1200);
+  }, [addToCart, product, isAdding, showAddedFeedback, getImageUrl, selectedVariant]);
 
-  // Helper functions for your existing structure
   const getSpiceLevelIcon = (level) => {
     const spiceMap = {
       'mild': '🌶️',
@@ -91,16 +153,9 @@ const ProductCard = ({ product }) => {
     return spiceMap[level?.toLowerCase()] || '🌶️';
   };
 
-  // Calculate discount percentage if not provided
-  const calculateDiscount = () => {
-    if (product.discount_percentage) return product.discount_percentage;
-    if (product.original_price && product.price) {
-      return Math.round(((product.original_price - product.price) / product.original_price) * 100);
-    }
-    return 0;
-  };
-
-  const discountPercentage = calculateDiscount();
+  const hasVariants = product.variants && product.variants.length > 0;
+  const isVariantRequired = hasVariants && !selectedVariant;
+  const isPriceRange = hasPriceRange();
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group border border-gray-100 dark:border-gray-700">
@@ -109,63 +164,39 @@ const ProductCard = ({ product }) => {
         <Link href={`/products/${product.slug || product.id}`}>
           <Image
             src={getImageUrl()}
-            alt={product.name || product.title || 'Product image'}
+            alt={product.name || 'Product'}
             width={400}
             height={300}
             className="w-full h-48 sm:h-56 object-cover group-hover:scale-110 transition-transform duration-500"
             onError={handleImageError}
-            placeholder="blur"
-            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R7SNf1jVZbCl5sVclyg0rWIoU2+hZBz1Nt+X4E/LjvYx+Y9LE1SaHa6PeJ/QJ9PEAYOEQAvtgc="
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
         </Link>
-
-        {/* Add to Cart Success Animation */}
-        {showAddedFeedback && (
-          <div className="absolute inset-0 bg-green-500 bg-opacity-90 flex items-center justify-center animate-pulse z-20">
-            <div className="text-white text-center">
-              <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-sm font-semibold">Added to Cart!</span>
-            </div>
+        
+        {product.on_sale && (
+          <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded-md text-xs font-bold">
+            SALE
           </div>
         )}
 
-        {/* Quick Add Overlay */}
-        {!showAddedFeedback && (
-          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center">
+        {!isPriceRange && !isVariantRequired && (
+          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
             <button
               onClick={handleAddToCart}
               disabled={isAdding || showAddedFeedback}
-              className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-4 group-hover:translate-y-0 bg-white hover:bg-orange-600 text-gray-800 hover:text-white px-6 py-3 rounded-full font-medium shadow-lg"
+              className={`
+                opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-y-2 group-hover:translate-y-0
+                px-4 py-2 rounded-lg font-medium text-sm
+                ${showAddedFeedback 
+                  ? 'bg-green-500 text-white' 
+                  : isAdding 
+                  ? 'bg-yellow-500 text-black' 
+                  : 'bg-white text-gray-800 hover:bg-gray-100'
+                }
+              `}
             >
-              {isAdding ? 'Adding...' : 'Quick Add'}
+              {showAddedFeedback ? '✓ Added!' : isAdding ? 'Adding...' : 'Quick Add'}
             </button>
-          </div>
-        )}
-
-        {/* Badges */}
-        <div className="absolute top-2 left-2 flex flex-col gap-2">
-          {/* Rating Badge */}
-          {product.rating && (
-            <div className="bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
-              <span>⭐</span>
-              <span>{product.rating}</span>
-            </div>
-          )}
-
-          {/* Vegetarian Badge */}
-          {product.is_vegetarian && (
-            <div className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
-              🌱 Veg
-            </div>
-          )}
-        </div>
-
-        {/* Discount Badge */}
-        {discountPercentage > 0 && (
-          <div className="absolute top-2 right-2 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
-            -{discountPercentage}%
           </div>
         )}
       </div>
@@ -185,21 +216,20 @@ const ProductCard = ({ product }) => {
           )}
         </div>
 
-        {/* Category and Brand */}
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-          {product.category_name && `${product.category_name}`}
-          {product.category_name && product.brand_name && ' • '}
-          {product.brand_name}
-        </p>
+        {(product.category_name || product.brand_name) && (
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+            {product.category_name}
+            {product.category_name && product.brand_name && ' • '}
+            {product.brand_name}
+          </p>
+        )}
 
-        {/* Description */}
         {(product.description || product.subtitle) && (
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
             {product.description || product.subtitle}
           </p>
         )}
 
-        {/* Dietary Tags */}
         {product.dietary_tags && product.dietary_tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-3">
             {product.dietary_tags.slice(0, 3).map((tag) => (
@@ -218,84 +248,103 @@ const ProductCard = ({ product }) => {
           </div>
         )}
 
+        {/* Variants Dropdown */}
+        {hasVariants && (
+          <div className="mb-3">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Select Variant:
+            </label>
+            <select
+              value={selectedVariant?.id || ''}
+              onChange={(e) => {
+                const variantId = e.target.value;
+                setSelectedVariant(variantId ? product.variants.find(v => v.id.toString() === variantId) : null);
+              }}
+              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+            >
+              <option value="">Choose variant...</option>
+              {product.variants.map((variant) => (
+                <option key={variant.id} value={variant.id}>
+                  {variant.name} - ${parseFloat(variant.price || 0).toFixed(2)}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Price and Add to Cart */}
         <div className="flex justify-between items-center mt-4">
           <div className="flex flex-col">
-            {/* Price Range or Single Price */}
-            {product.price_range ? (
-              <div className="flex flex-col">
-                <span className="text-lg font-bold text-gray-800 dark:text-white">
-                  ${product.price_range.min_price || product.price_range.min} - ${product.price_range.max_price || product.price_range.max}
-                </span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  Price varies by options
-                </span>
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center space-x-2">
-                  <span className="text-lg font-bold text-gray-800 dark:text-white">
-                    ${parseFloat(product.price || product.current_price || product.final_price || 0).toFixed(2)}
-                  </span>
-                  {product.original_price && parseFloat(product.original_price) > parseFloat(product.price || product.current_price || 0) && (
-                    <span className="text-sm text-gray-500 dark:text-gray-400 line-through">
-                      ${parseFloat(product.original_price).toFixed(2)}
-                    </span>
-                  )}
-                </div>
-              </>
+            <span className="text-lg font-bold text-gray-800 dark:text-white">
+              {getPriceDisplay()}
+            </span>
+            
+            {isPriceRange && !selectedVariant && (
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                Price varies by options
+              </span>
+            )}
+            
+            {product.original_price && product.original_price !== (selectedVariant?.price || product.price) && (
+              <span className="text-sm text-gray-500 dark:text-gray-400 line-through">
+                ${parseFloat(product.original_price).toFixed(2)}
+              </span>
             )}
           </div>
-
-          {/* Add to Cart Button */}
+          
           <button
             onClick={handleAddToCart}
-            disabled={isAdding || showAddedFeedback || product.price_range}
-            className={`transition-all duration-200 px-4 py-2 rounded-lg font-medium ${
-              showAddedFeedback
-                ? 'bg-green-600 text-white cursor-default'
-                : isAdding
-                ? 'bg-orange-400 text-white cursor-not-allowed'
-                : product.price_range
+            disabled={isAdding || showAddedFeedback || isVariantRequired}
+            className={`
+              px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-1
+              ${showAddedFeedback 
+                ? 'bg-green-500 text-white' 
+                : isAdding 
+                ? 'bg-yellow-500 text-black' 
+                : isVariantRequired
+                ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                : isPriceRange && !selectedVariant
                 ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                : 'bg-orange-600 hover:bg-orange-700 text-white hover:shadow-lg'
-            }`}
-            title={product.price_range ? 'Click to view product options and pricing' : 'Add to cart'}
+                : 'bg-orange-600 hover:bg-orange-700 text-white'
+              }
+            `}
           >
             {showAddedFeedback ? (
-              <span className="flex items-center space-x-1">
+              <>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
                 <span>Added!</span>
-              </span>
+              </>
             ) : isAdding ? (
-              <span className="flex items-center space-x-1">
-                <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              <>
+                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
                 <span>Adding...</span>
-              </span>
-            ) : product.price_range ? (
-              <span className="flex items-center space-x-1">
+              </>
+            ) : isVariantRequired ? (
+              <span>Select Variant</span>
+            ) : isPriceRange && !selectedVariant ? (
+              <>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                 </svg>
                 <span>View</span>
-              </span>
+              </>
             ) : (
-              <span className="flex items-center space-x-1">
+              <>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m0 0h8" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
                 <span>Add</span>
-              </span>
+              </>
             )}
           </button>
         </div>
 
-        {/* Stock Status */}
         {product.stock !== undefined && (
           <div className="mt-3">
             {product.stock > 0 ? (

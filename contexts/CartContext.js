@@ -1,4 +1,3 @@
-// contexts/CartContext.js - Context-based cart with guaranteed updates
 'use client';
 
 import { createContext, useContext, useState, useEffect } from 'react';
@@ -8,7 +7,7 @@ const CartContext = createContext();
 export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [cartUpdateCount, setCartUpdateCount] = useState(0); // Force re-renders
+  const [cartUpdateCount, setCartUpdateCount] = useState(0);
 
   // Load cart from localStorage on mount
   useEffect(() => {
@@ -90,7 +89,8 @@ export const CartProvider = ({ children }) => {
 
     setCart(currentCart => {
       const newCart = currentCart.map(item =>
-        item.id === productId ? { ...item, quantity: newQuantity } : item
+        item.id === productId ? 
+        { ...item, quantity: newQuantity } : item
       );
       console.log('📝 New cart state:', newCart);
       triggerUpdate();
@@ -135,7 +135,7 @@ export const CartProvider = ({ children }) => {
     clearCart,
     getTotalItems,
     getTotalPrice,
-    cartUpdateCount // Expose this for components that need to react to changes
+    cartUpdateCount
   };
 
   return (

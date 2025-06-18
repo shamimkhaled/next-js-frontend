@@ -1,18 +1,31 @@
-// components/FloatingCartIcon.js - Using Context for guaranteed updates
+// components/FloatingCartIcon.js - WITH CHECKOUT FUNCTIONALITY
 'use client';
 
 import { useState } from 'react';
 import { useCart } from '@/contexts/CartContext';
+import { useCheckout } from '@/contexts/CheckoutContext';
 import Image from 'next/image';
 
 const FloatingCartIcon = () => {
   const { cart, getTotalItems, removeFromCart, updateQuantity, getTotalPrice, clearCart, cartUpdateCount } = useCart();
+  const { 
+    isProcessing, 
+    processedItems, 
+    errors, 
+    processCheckout, 
+    progressPercentage 
+  } = useCheckout();
   const [isOpen, setIsOpen] = useState(false);
 
   const totalItems = getTotalItems();
   const totalPrice = getTotalPrice();
 
   console.log('🎯 FloatingCartIcon render - Items:', totalItems, 'Update count:', cartUpdateCount);
+
+  const handleCheckout = async () => {
+    console.log('🔘 Checkout button clicked');
+    await processCheckout();
+  };
 
   return (
     <>
@@ -37,7 +50,7 @@ const FloatingCartIcon = () => {
             />
           </svg>
           
-          {/* Item Count Badge - Key changes on every update */}
+          {/* Item Count Badge */}
           {totalItems > 0 && (
             <div 
               key={`badge-${cartUpdateCount}-${totalItems}`}
@@ -113,6 +126,11 @@ const FloatingCartIcon = () => {
                             ${(parseFloat(item.price) || 0).toFixed(2)}
                           </p>
                           
+                          {/* Product/Variant Info */}
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            {item.variant_id ? `Variant: ${item.variant_id}` : `Product: ${item.product_id || item.id}`}
+                          </p>
+                          
                           {/* Quantity Controls */}
                           <div className="flex items-center mt-2 space-x-2">
                             <button
@@ -157,18 +175,59 @@ const FloatingCartIcon = () => {
                     <span>({totalItems} items)</span>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="space-y-2">
-                    <button className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-lg font-medium transition-colors">
-                      Checkout
-                    </button>
-                    <button
-                      onClick={clearCart}
-                      className="w-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-white py-2 rounded-lg font-medium transition-colors"
-                    >
-                      Clear Cart
-                    </button>
-                  </div>
+                  {/* Checkout Button */}
+                  <button 
+                    onClick={handleCheckout}
+                    disabled={isProcessing || cart.length === 0}
+                    className={`
+                      w-full py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center
+                      ${isProcessing 
+                        ? 'bg-yellow-500 text-black cursor-not-allowed' 
+                        : 'bg-orange-600 hover:bg-orange-700 text-white'
+                      }
+                    `}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Processing... ({processedItems.length}/{cart.length})
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6M7 13l-1.5 6m0 0h9.5M17 13v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6" />
+                        </svg>
+                        Checkout
+                      </>
+                    )}
+                  </button>
+
+                  {/* Progress Bar */}
+                  {isProcessing && (
+                    <div className="mt-4">
+                      <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
+                        <span>Processing items...</span>
+                        <span>{Math.round(progressPercentage)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                        <div 
+                          className="bg-orange-500 h-2 rounded-full transition-all duration-300 ease-out"
+                          style={{ width: `${progressPercentage}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Clear Cart Button */}
+                  <button
+                    onClick={clearCart}
+                    className="w-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-white py-2 rounded-lg font-medium transition-colors"
+                  >
+                    Clear Cart
+                  </button>
                 </div>
               )}
             </div>

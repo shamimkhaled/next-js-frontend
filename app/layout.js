@@ -1,12 +1,13 @@
-// app/layout.js - Updated with Context Provider
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import FloatingCartIcon from "@/components/FloatingCartIcon";
-import { CartProvider } from "@/contexts/CartContext"; // Using Context instead
+import TestCheckoutButton from "@/components/TestCheckoutButton"; // ADD FOR TESTING
+import { CartProvider } from "@/contexts/CartContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { CheckoutProvider } from "@/contexts/CheckoutContext";
 import { getSettings } from "@/lib/settingsApi";
 
 const geistSans = Geist({
@@ -19,7 +20,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Generate metadata dynamically
 export async function generateMetadata() {
   const settings = await getSettings();
   
@@ -31,7 +31,6 @@ export async function generateMetadata() {
 }
 
 export default async function RootLayout({ children }) {
-  // Fetch settings server-side for initial render
   const initialSettings = await getSettings();
 
   return (
@@ -42,12 +41,15 @@ export default async function RootLayout({ children }) {
         <SettingsProvider initialSettings={initialSettings}>
           <AuthProvider>
             <CartProvider>
-              <Navbar />
-              <main className="min-h-screen pt-2">
-                {children}
-              </main>
-              <Footer />
-              <FloatingCartIcon />
+              <CheckoutProvider>
+                <Navbar />
+                <main className="min-h-screen pt-2">
+                  {children}
+                </main>
+                <Footer />
+                <FloatingCartIcon />
+                <TestCheckoutButton /> {/* TEMPORARY TEST COMPONENT */}
+              </CheckoutProvider>
             </CartProvider>
           </AuthProvider>
         </SettingsProvider>
