@@ -48,7 +48,7 @@ export default async function RootLayout({ children }) {
                 </main>
                 <Footer />
                 <FloatingCartIcon />
-                <TestCheckoutButton /> {/* TEMPORARY TEST COMPONENT */}
+                
               </CheckoutProvider>
             </CartProvider>
           </AuthProvider>
