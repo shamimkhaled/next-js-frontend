@@ -2,12 +2,13 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import FloatingCartIcon from "@/components/FloatingCartIcon";
+import FloatingCartIcon from "@/components/FloatingCartIcon"; // Keep your existing import
 import TestCheckoutButton from "@/components/TestCheckoutButton"; // ADD FOR TESTING
 import { CartProvider } from "@/contexts/CartContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CheckoutProvider } from "@/contexts/CheckoutContext";
+import { OrderProvider } from "@/contexts/OrderContext"; // NEW: Add OrderProvider
 import { getSettings } from "@/lib/settingsApi";
 
 const geistSans = Geist({
@@ -42,13 +43,14 @@ export default async function RootLayout({ children }) {
           <AuthProvider>
             <CartProvider>
               <CheckoutProvider>
-                <Navbar />
-                <main className="min-h-screen pt-2">
-                  {children}
-                </main>
-                <Footer />
-                <FloatingCartIcon />
-                
+                <OrderProvider>
+                  <Navbar />
+                  <main className="min-h-screen pt-2">
+                    {children}
+                  </main>
+                  <Footer />
+                  <FloatingCartIcon />
+                </OrderProvider>
               </CheckoutProvider>
             </CartProvider>
           </AuthProvider>
