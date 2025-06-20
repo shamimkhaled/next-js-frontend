@@ -23,33 +23,13 @@ const WhatsAppWidget = ({
     return /android|blackberry|iemobile|ipad|iphone|ipod|opera mini|webos/i.test(userAgent.toLowerCase());
   };
 
-  // Exact WhatsApp official icon - same as the app
-  const OfficialWhatsAppIcon = () => (
-    <svg width="60" height="60" viewBox="0 0 60 60" fill="none">
-      <defs>
-        <linearGradient id="whatsapp-bg" x1="50%" y1="0%" x2="50%" y2="100%">
-          <stop offset="0%" stopColor="#5EDC36"/>
-          <stop offset="100%" stopColor="#25D366"/>
-        </linearGradient>
-      </defs>
-      {/* Main circle background */}
-      <circle cx="30" cy="30" r="30" fill="url(#whatsapp-bg)"/>
-      {/* WhatsApp logo */}
-      <path d="M30.667 13.333C22.333 13.333 15.667 20 15.667 28.333c0 2.667.667 5.167 1.833 7.334L15.667 46.667l11.167-2.833c2.167.833 4.5 1.333 7 1.333 8.333 0 15-6.667 15-15s-6.667-15-15.167-15zm8.666 21.334c-.333 1.5-1.833 2.667-3.167 3-.667.167-1.5.333-4.167-.833-2.833-1.333-4.833-4-5-4.167-.167-.167-1.167-1.5-1.167-2.833s.667-2 .833-2.333c.167-.333.5-.333.667-.333s.333 0 .5.017c.167 0 .333-.083.5.5.167.583.833 1.833.917 1.967.083.133.083.333-.083.5-.167.167-.167.333-.333.5-.167.167-.333.333-.167.583.167.25.667 1.167 1.5 1.917 1.083.917 2 1.25 2.333 1.417.333.167.5.083.667-.083.167-.167.667-.75.833-1 .167-.25.333-.167.5-.083.167.083 1.667.75 1.917.917.25.167.417.25.5.417.083.167.083.667-.25 1.333z" fill="white"/>
-    </svg>
-  );
-
-  // Exact same icon for different sizes
-  const WhatsAppIcon = ({ size = 24 }) => (
-    <svg width={size} height={size} viewBox="0 0 60 60" fill="none">
-      <defs>
-        <linearGradient id={`whatsapp-bg-${size}`} x1="50%" y1="0%" x2="50%" y2="100%">
-          <stop offset="0%" stopColor="#5EDC36"/>
-          <stop offset="100%" stopColor="#25D366"/>
-        </linearGradient>
-      </defs>
-      <circle cx="30" cy="30" r="30" fill={`url(#whatsapp-bg-${size})`}/>
-      <path d="M30.667 13.333C22.333 13.333 15.667 20 15.667 28.333c0 2.667.667 5.167 1.833 7.334L15.667 46.667l11.167-2.833c2.167.833 4.5 1.333 7 1.333 8.333 0 15-6.667 15-15s-6.667-15-15.167-15zm8.666 21.334c-.333 1.5-1.833 2.667-3.167 3-.667.167-1.5.333-4.167-.833-2.833-1.333-4.833-4-5-4.167-.167-.167-1.167-1.5-1.167-2.833s.667-2 .833-2.333c.167-.333.5-.333.667-.333s.333 0 .5.017c.167 0 .333-.083.5.5.167.583.833 1.833.917 1.967.083.133.083.333-.083.5-.167.167-.167.333-.333.5-.167.167-.333.333-.167.583.167.25.667 1.167 1.5 1.917 1.083.917 2 1.25 2.333 1.417.333.167.5.083.667-.083.167-.167.667-.75.833-1 .167-.25.333-.167.5-.083.167.083 1.667.75 1.917.917.25.167.417.25.5.417.083.167.083.667-.25 1.333z" fill="white"/>
+  // WHITE WhatsApp icon - exact same shape but white
+  const WhiteWhatsAppIcon = ({ size = 60 }) => (
+    <svg width={size} height={size} viewBox="0 0 256 256" fill="none">
+      {/* White circle background */}
+      <circle cx="128" cy="128" r="128" fill="white"/>
+      {/* Green speech bubble + phone icon */}
+      <path d="M128.014 42C78.103 42 37.754 82.351 37.754 132.261c0 16.188 4.267 31.366 11.727 44.504l-12.5 45.66 46.727-12.253c12.633 6.953 27.03 10.913 42.306 10.913 49.911 0 90.26-40.351 90.26-90.261S177.925 42 128.014 42zm50.984 127.914c-2.117 5.956-10.537 10.955-17.402 12.376-4.51 0.931-10.39 1.684-30.128-6.295-21.242-9.204-35.348-30.077-36.426-31.479-1.078-1.403-8.738-11.552-8.738-22.025 0-10.472 5.531-15.663 7.493-17.802 1.962-2.14 4.279-2.672 5.707-2.672s2.848 0.063 4.096 0.118c1.313 0.063 3.074-0.497 4.802 3.666 1.738 4.163 5.907 14.422 6.421 15.467 0.514 1.044 0.857 2.295 0.172 3.694-0.686 1.399-1.029 2.265-2.062 3.508-1.034 1.244-2.174 2.776-3.108 3.726-1.034 1.058-2.109 2.198-0.907 4.302 1.201 2.104 5.35 8.888 11.483 14.395 7.896 7.088 14.552 9.294 16.634 10.338 2.081 1.044 3.298 0.872 4.507-0.531 1.209-1.403 5.182-5.97 6.565-8.024 1.383-2.054 2.766-1.713 4.644-1.029 1.878 0.685 11.913 5.617 13.948 6.642 2.034 1.025 3.391 1.537 3.906 2.391 0.514 0.854 0.514 4.943-1.202 9.706z" fill="#25D366"/>
     </svg>
   );
 
@@ -60,10 +40,18 @@ const WhatsAppWidget = ({
     </svg>
   );
 
-  // Send icon
+  // Better send icon - paper plane style
   const SendIcon = () => (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M15.854.146a.5.5 0 0 1 .11.54L13.026 8.47a.5.5 0 0 1-.708.296L8.5 7.5l-.5 2-1.5-1.5L8.5 5.5l3.818-1.236a.5.5 0 0 1 .536.682z"/>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+    </svg>
+  );
+
+  // Alternative send icon - arrow style
+  const SendArrowIcon = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="22" y1="2" x2="11" y2="13"></line>
+      <polygon points="22,2 15,22 11,13 2,9 22,2"></polygon>
     </svg>
   );
 
@@ -184,7 +172,7 @@ const WhatsAppWidget = ({
                 onClick={openWhatsAppWeb}
                 className="w-full bg-[#25D366] text-white px-4 py-2 rounded-lg hover:bg-[#128C7E] transition-colors flex items-center justify-center space-x-2"
               >
-                <WhatsAppIcon size={20} />
+                <WhiteWhatsAppIcon size={20} />
                 <span>Open WhatsApp Web</span>
               </button>
             </div>
@@ -231,7 +219,7 @@ const WhatsAppWidget = ({
           {/* Header */}
           <div className="bg-[#25D366] text-white p-4 flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <WhatsAppIcon size={40} />
+              <WhiteWhatsAppIcon size={40} />
               <div>
                 <h3 className="font-semibold text-sm">{companyName}</h3>
                 <p className="text-xs opacity-90">{replyTimeText}</p>
@@ -283,12 +271,12 @@ const WhatsAppWidget = ({
         </div>
       )}
 
-      {/* Floating Button - Exact WhatsApp App Icon Size */}
+      {/* Floating Button - White WhatsApp Icon */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-16 h-16 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center justify-center relative group"
       >
-        <OfficialWhatsAppIcon />
+        <WhiteWhatsAppIcon size={64} />
         
         {/* Pulse animation */}
         <div className="absolute inset-0 rounded-full bg-[#25D366] animate-ping opacity-20"></div>
