@@ -23,34 +23,33 @@ const WhatsAppWidget = ({
     return /android|blackberry|iemobile|ipad|iphone|ipod|opera mini|webos/i.test(userAgent.toLowerCase());
   };
 
-  // Official WhatsApp icon - exact replica
-  const WhatsAppIcon = () => (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-      <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2.546 20.2a.5.5 0 0 0 .656.656l3.032-.892A9.96 9.96 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2ZM8.588 7.58c.21-.22.635-.066.93.303l.806 1.016c.196.247.198.597-.035.85l-.348.377c-.15.164-.178.4-.068.596.682 1.21 1.69 2.218 2.9 2.9.196.11.432.082.596-.068l.377-.348c.253-.233.603-.23.85-.035l1.016.806c.37.295.524.72.303.93-.65.618-1.542.84-2.403.84-2.91 0-5.26-2.35-5.26-5.26 0-.86.222-1.753.84-2.403Z" fill="currentColor"/>
-    </svg>
-  );
-
-  // Real WhatsApp logo with proper bubble design
-  const WhatsAppBubbleIcon = () => (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="11" fill="#25D366"/>
-      <circle cx="12" cy="12" r="10" fill="#25D366"/>
-      <path d="M12.04 6.42c-2.78 0-5.04 2.26-5.04 5.04 0 .9.24 1.77.69 2.52L6.21 17.2l3.32-1.4c.72.4 1.53.62 2.38.62h.002c2.78 0 5.04-2.26 5.04-5.04s-2.26-5.04-5.04-5.04zm2.52 7.2c-.1.28-.6.52-.85.59-.23.06-.53.09-1.54-.32-1.09-.47-1.82-1.53-1.88-1.6-.06-.07-.45-.59-.45-1.13s.28-.8.38-.91c.1-.11.22-.14.29-.14s.15 0 .21.01c.07 0 .16-.03.25.19.09.21.3.74.33.79.03.05.05.12.01.19-.04.07-.06.11-.11.18-.05.06-.11.14-.16.19-.05.05-.11.11-.05.22.06.11.28.47.61.76.42.37.77.49.88.54.11.05.17.04.24-.02.06-.06.27-.32.35-.43.07-.11.15-.09.25-.05.1.04.64.3.75.35.11.05.18.08.21.13.03.04.03.26-.1.61z" fill="white"/>
-    </svg>
-  );
-
-  // Alternative - even more accurate WhatsApp icon
-  const RealWhatsAppIcon = () => (
-    <svg width="24" height="24" viewBox="0 0 175.216 175.552">
+  // Exact WhatsApp official icon - same as the app
+  const OfficialWhatsAppIcon = () => (
+    <svg width="60" height="60" viewBox="0 0 60 60" fill="none">
       <defs>
-        <linearGradient id="whatsapp-gradient" x1="50%" y1="0%" x2="50%" y2="100%">
-          <stop offset="0%" stopColor="#61fd7d"/>
-          <stop offset="100%" stopColor="#2bb826"/>
+        <linearGradient id="whatsapp-bg" x1="50%" y1="0%" x2="50%" y2="100%">
+          <stop offset="0%" stopColor="#5EDC36"/>
+          <stop offset="100%" stopColor="#25D366"/>
         </linearGradient>
       </defs>
-      <path fill="url(#whatsapp-gradient)" d="M87.184 25.227c-33.733 0-61.166 27.423-61.178 61.13a60.98 60.98 0 0 0 9.349 32.535l1.455 2.313-6.179 22.558 23.146-6.069 2.235 1.324c9.908 5.881 21.23 8.906 32.695 8.914h.042c33.733 0 61.177-27.426 61.178-61.135a60.75 60.75 0 0 0-17.89-43.251 60.98 60.98 0 0 0-43.285-17.929l-.568-.009z"/>
-      <path fill="url(#whatsapp-gradient)" d="M87.184 25.227c-33.733 0-61.166 27.423-61.178 61.13a60.98 60.98 0 0 0 9.349 32.535l1.455 2.313-6.179 22.558 23.146-6.069 2.235 1.324c9.908 5.881 21.23 8.906 32.695 8.914h.042c33.733 0 61.177-27.426 61.178-61.135a60.75 60.75 0 0 0-17.89-43.251 60.98 60.98 0 0 0-43.285-17.929l-.568-.009z"/>
-      <path fill="#fff" fillRule="evenodd" d="M68.772 55.603c-1.378-3.061-2.828-3.123-4.137-3.176l-3.524-.043c-1.226 0-3.218.46-4.902 2.3s-6.435 6.287-6.435 15.332 6.588 17.785 7.506 19.013 12.718 20.381 31.405 27.75c15.529 6.124 18.689 4.906 22.061 4.6s10.877-4.447 12.408-8.74 1.532-7.971 1.073-8.74-1.685-1.226-3.525-2.146-10.877-5.367-12.562-5.981-2.91-.919-4.137.921-4.746 5.979-5.819 7.206-2.144 1.381-3.984.462-7.76-2.861-14.784-9.124c-5.465-4.873-9.154-10.891-10.228-12.73s-.114-2.835.808-3.751c.825-.824 1.838-2.147 2.759-3.22s1.224-1.84 1.836-3.065.307-2.301-.153-3.22-4.032-10.011-5.666-13.647"/>
+      {/* Main circle background */}
+      <circle cx="30" cy="30" r="30" fill="url(#whatsapp-bg)"/>
+      {/* WhatsApp logo */}
+      <path d="M30.667 13.333C22.333 13.333 15.667 20 15.667 28.333c0 2.667.667 5.167 1.833 7.334L15.667 46.667l11.167-2.833c2.167.833 4.5 1.333 7 1.333 8.333 0 15-6.667 15-15s-6.667-15-15.167-15zm8.666 21.334c-.333 1.5-1.833 2.667-3.167 3-.667.167-1.5.333-4.167-.833-2.833-1.333-4.833-4-5-4.167-.167-.167-1.167-1.5-1.167-2.833s.667-2 .833-2.333c.167-.333.5-.333.667-.333s.333 0 .5.017c.167 0 .333-.083.5.5.167.583.833 1.833.917 1.967.083.133.083.333-.083.5-.167.167-.167.333-.333.5-.167.167-.333.333-.167.583.167.25.667 1.167 1.5 1.917 1.083.917 2 1.25 2.333 1.417.333.167.5.083.667-.083.167-.167.667-.75.833-1 .167-.25.333-.167.5-.083.167.083 1.667.75 1.917.917.25.167.417.25.5.417.083.167.083.667-.25 1.333z" fill="white"/>
+    </svg>
+  );
+
+  // Exact same icon for different sizes
+  const WhatsAppIcon = ({ size = 24 }) => (
+    <svg width={size} height={size} viewBox="0 0 60 60" fill="none">
+      <defs>
+        <linearGradient id={`whatsapp-bg-${size}`} x1="50%" y1="0%" x2="50%" y2="100%">
+          <stop offset="0%" stopColor="#5EDC36"/>
+          <stop offset="100%" stopColor="#25D366"/>
+        </linearGradient>
+      </defs>
+      <circle cx="30" cy="30" r="30" fill={`url(#whatsapp-bg-${size})`}/>
+      <path d="M30.667 13.333C22.333 13.333 15.667 20 15.667 28.333c0 2.667.667 5.167 1.833 7.334L15.667 46.667l11.167-2.833c2.167.833 4.5 1.333 7 1.333 8.333 0 15-6.667 15-15s-6.667-15-15.167-15zm8.666 21.334c-.333 1.5-1.833 2.667-3.167 3-.667.167-1.5.333-4.167-.833-2.833-1.333-4.833-4-5-4.167-.167-.167-1.167-1.5-1.167-2.833s.667-2 .833-2.333c.167-.333.5-.333.667-.333s.333 0 .5.017c.167 0 .333-.083.5.5.167.583.833 1.833.917 1.967.083.133.083.333-.083.5-.167.167-.167.333-.333.5-.167.167-.333.333-.167.583.167.25.667 1.167 1.5 1.917 1.083.917 2 1.25 2.333 1.417.333.167.5.083.667-.083.167-.167.667-.75.833-1 .167-.25.333-.167.5-.083.167.083 1.667.75 1.917.917.25.167.417.25.5.417.083.167.083.667-.25 1.333z" fill="white"/>
     </svg>
   );
 
@@ -185,9 +184,7 @@ const WhatsAppWidget = ({
                 onClick={openWhatsAppWeb}
                 className="w-full bg-[#25D366] text-white px-4 py-2 rounded-lg hover:bg-[#128C7E] transition-colors flex items-center justify-center space-x-2"
               >
-                <div className="w-5 h-5">
-                  <RealWhatsAppIcon />
-                </div>
+                <WhatsAppIcon size={20} />
                 <span>Open WhatsApp Web</span>
               </button>
             </div>
@@ -234,9 +231,7 @@ const WhatsAppWidget = ({
           {/* Header */}
           <div className="bg-[#25D366] text-white p-4 flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center p-1">
-                <RealWhatsAppIcon />
-              </div>
+              <WhatsAppIcon size={40} />
               <div>
                 <h3 className="font-semibold text-sm">{companyName}</h3>
                 <p className="text-xs opacity-90">{replyTimeText}</p>
@@ -288,14 +283,12 @@ const WhatsAppWidget = ({
         </div>
       )}
 
-      {/* Floating Button */}
+      {/* Floating Button - Exact WhatsApp App Icon Size */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="bg-white text-white w-16 h-16 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-110 flex items-center justify-center relative group border-4 border-white"
+        className="w-16 h-16 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center justify-center relative group"
       >
-        <div className="w-14 h-14">
-          <RealWhatsAppIcon />
-        </div>
+        <OfficialWhatsAppIcon />
         
         {/* Pulse animation */}
         <div className="absolute inset-0 rounded-full bg-[#25D366] animate-ping opacity-20"></div>
