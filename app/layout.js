@@ -63,7 +63,7 @@ export default async function RootLayout({ children }) {
                   
                   {/* 📱 WHATSAPP WIDGET - Customer Support */}
                   <WhatsAppWidget 
-                    phoneNumber="+610402726367" // 🔥 REPLACE WITH YOUR ACTUAL WHATSAPP NUMBER
+                    phoneNumber="+8801988616035" // 🔥 REPLACE WITH YOUR ACTUAL WHATSAPP NUMBER
                     companyName={initialSettings.site_name || "Support"}
                     message={`Hi there! 👋 Welcome to ${initialSettings.site_name || "our store"}!\n\nHow can we help you today? We're here to assist with:\n• Menu questions 🍽️\n• Order support 📦\n• Delivery info 🚚\n• Any other questions!`}
                     replyTimeText="Usually replies within 15 minutes"
