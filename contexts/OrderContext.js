@@ -1,9 +1,8 @@
-// contexts/OrderContext.js - Order Management Context
 'use client';
 
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { useCart } from './CartContext';
-import { useAuth } from './AuthContext';
+import { useAuth } from './AuthContext'; // Import auth context
 import { createOrder, getOrder, getUserOrders } from '@/utils/orderApi';
 
 const OrderContext = createContext();
@@ -17,8 +16,8 @@ export const useOrder = () => {
 };
 
 export const OrderProvider = ({ children }) => {
-  const { cart, clearCart, getTotalPrice } = useCart();
-  const { user, isAuthenticated } = useAuth();
+  const { cart, getTotalPrice, clearCart } = useCart();
+  const { isAuthenticated, user } = useAuth(); // Get auth status
   
   // Order state
   const [currentOrder, setCurrentOrder] = useState(null);
@@ -27,30 +26,26 @@ export const OrderProvider = ({ children }) => {
   const [orderError, setOrderError] = useState(null);
   const [orderSuccess, setOrderSuccess] = useState(false);
 
-  // Cart-related helpers
-  const hasItems = cart && cart.length > 0;
-  const itemCount = cart ? cart.reduce((total, item) => total + (parseInt(item.quantity) || 1), 0) : 0;
+  // Cart helpers
+  const hasItems = cart.length > 0;
+  const itemCount = cart.reduce((total, item) => total + (item.quantity || 1), 0);
 
   /**
-   * Create a new order from current cart
-   * @param {Object} orderDetails - Additional order details (delivery address, etc.)
-   * @returns {Promise<Object>} - Created order
+   * Create order from current cart with proper authentication
    */
-  const createOrderFromCart = useCallback(async (orderDetails) => {
+  const createOrderFromCart = useCallback(async (orderDetails = {}) => {
     console.log('\n🎯 =============================================');
-    console.log('🎯 CREATING ORDER FROM CART');
+    console.log('🎯 ORDER CREATION FROM CART STARTED');
     console.log('🎯 =============================================');
     
-    if (!isAuthenticated || !user) {
-      const error = 'User must be logged in to create an order';
-      console.log('❌', error);
-      setOrderError(error);
-      throw new Error(error);
-    }
-
+    // Log authentication status
+    console.log('🔐 Authentication Status:');
+    console.log('  👤 Is Authenticated:', isAuthenticated);
+    console.log('  👤 User:', user ? { id: user.id, email: user.email } : 'None');
+    
     if (!hasItems) {
-      const error = 'Cart is empty, cannot create order';
-      console.log('❌', error);
+      const error = 'Cannot create order: Cart is empty';
+      console.error('❌', error);
       setOrderError(error);
       throw new Error(error);
     }
@@ -60,33 +55,30 @@ export const OrderProvider = ({ children }) => {
     setOrderSuccess(false);
 
     try {
-      // Prepare order data according to your API structure
+      // Prepare order data
       const orderData = {
-        order_type: orderDetails.order_type || 'delivery',
-        ...orderDetails,
+        items: cart.map(item => ({
+          product_id: item.product_id || item.id,
+          variant_id: item.variant_id,
+          quantity: item.quantity || 1,
+          price: parseFloat(item.price) || 0
+        })),
+        total_amount: getTotalPrice(),
+        ...orderDetails
       };
 
-      // If delivery order, ensure delivery address is included
-      if (orderData.order_type === 'delivery' && !orderData.delivery_address) {
-        throw new Error('Delivery address is required for delivery orders');
-      }
-
       console.log('📦 Order data prepared:', JSON.stringify(orderData, null, 2));
-      console.log(`🛒 Cart contains ${cart.length} items with total: $${getTotalPrice().toFixed(2)}`);
 
-      // Create the order via API
-      const createdOrder = await createOrder(orderData);
-      
-      console.log('✅ Order created successfully:', createdOrder);
-      
-      // Update state
+      // Create order with proper authentication
+      console.log('🔐 Creating order with authentication...');
+      const createdOrder = await createOrder(orderData, isAuthenticated);
+
       setCurrentOrder(createdOrder);
       setOrderSuccess(true);
-      
-      // Clear cart after successful order creation
       clearCart();
-      
-      console.log('🎉 Order creation completed successfully!');
+
+      console.log('✅ Order created successfully with authentication!');
+      console.log('✅ Order ID:', createdOrder.id || createdOrder.order_id);
       
       return createdOrder;
       
@@ -100,11 +92,12 @@ export const OrderProvider = ({ children }) => {
   }, [cart, hasItems, getTotalPrice, clearCart, isAuthenticated, user]);
 
   /**
-   * Fetch order by ID
+   * Fetch order by ID with proper authentication
    */
   const fetchOrder = useCallback(async (orderId) => {
     try {
       setOrderError(null);
+      console.log('🔐 Fetching order with authentication...');
       const order = await getOrder(orderId);
       setCurrentOrder(order);
       return order;
@@ -116,7 +109,7 @@ export const OrderProvider = ({ children }) => {
   }, []);
 
   /**
-   * Fetch user's order history
+   * Fetch user's order history with proper authentication
    */
   const fetchOrderHistory = useCallback(async () => {
     if (!isAuthenticated) {
@@ -126,6 +119,7 @@ export const OrderProvider = ({ children }) => {
 
     try {
       setOrderError(null);
+      console.log('🔐 Fetching order history with authentication...');
       const orders = await getUserOrders();
       setOrderHistory(Array.isArray(orders) ? orders : []);
       return orders;

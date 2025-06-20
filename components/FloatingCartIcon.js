@@ -1,4 +1,3 @@
-// components/FloatingCartIcon.js - WITH DUAL CHECKOUT FUNCTIONALITY
 'use client';
 
 import { useState } from 'react';
@@ -20,82 +19,153 @@ const FloatingCartIcon = () => {
     progressPercentage 
   } = useCheckout();
   
-  // NEW: Add order and auth context
   const { hasItems, itemCount, isCreatingOrder } = useOrder();
   const { user, isAuthenticated } = useAuth();
   
   const [isOpen, setIsOpen] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   const totalItems = getTotalItems();
   const totalPrice = getTotalPrice();
 
   console.log('🎯 FloatingCartIcon render - Items:', totalItems, 'Update count:', cartUpdateCount);
 
-  // ORIGINAL: Quick Checkout API Call (adds items to backend cart)
-  const handleQuickCheckout = async () => {
-    console.log('⚡ Quick Checkout API call - Adding items to backend cart');
-    await processCheckout();
-  };
-
-  // Login & Checkout (calls cart API first, then redirects to checkout page)
-  const handleLoginCheckout = async () => {
-    console.log('🔐 Login & Checkout - Adding to cart first, then redirecting');
+  // SHARED FUNCTION: Cart API + Checkout Redirect with Cart Preservation
+  const handleCartApiThenCheckout = async (checkoutType = 'default') => {
+    console.log(`\n🛒 =============================================`);
+    console.log(`🛒 ${checkoutType.toUpperCase()} CHECKOUT - API FIRST, THEN REDIRECT`);
+    console.log(`🛒 =============================================`);
     
-    // Check if cart has items
     if (!hasItems || cart.length === 0) {
       alert('Your cart is empty. Please add some items before checkout.');
       return;
     }
-    
+
+    if (typeof processCheckout !== 'function') {
+      console.error('❌ CRITICAL: processCheckout is not a function!');
+      alert('Error: Checkout function not available. Check console.');
+      return;
+    }
+
     try {
-      // STEP 1: Call the cart API to add items to backend
-      console.log('📤 Step 1: Adding items to backend cart via API...');
-      await processCheckout();
+      setIsRedirecting(true);
       
-      // STEP 2: Close the floating cart
-      setIsOpen(false);
+      // STEP 1: Call Cart API for ALL users (authenticated + guest)
+      console.log('📤 STEP 1: Adding items to backend cart via API...');
+      console.log(`👤 User Type: ${isAuthenticated ? 'Authenticated' : 'Guest'}`);
+      console.log(`📦 Items to process: ${cart.length}`);
+      console.log(`🔐 Auth status:`, { isAuthenticated, user: user?.email || 'None' });
       
-      // STEP 3: Check authentication and redirect to checkout
-      if (!isAuthenticated || !user) {
-        console.log('🔐 Step 2: User not logged in, redirecting to login then checkout');
-        router.push('/login?redirect=/checkout');
-      } else {
-        console.log('🔄 Step 2: User logged in, redirecting to checkout page');
-        router.push('/checkout');
+      // IMPORTANT: Don't clear cart during API call - we need it for checkout page
+      const result = await processCheckout(false); // false = don't clear cart
+      
+      if (!result || !result.success) {
+        throw new Error(`Cart API failed: ${result?.errors?.length || 0} errors`);
       }
       
+      console.log('✅ STEP 1 COMPLETED: Cart API successful');
+      console.log('📊 API Results:', {
+        success: result.success,
+        totalItems: result.totalItems,
+        successCount: result.successCount,
+        errorCount: result.errorCount
+      });
+      
+      // STEP 2: Close floating cart
+      setIsOpen(false);
+      
+      // STEP 3: Set checkout flag to preserve cart during redirect
+      console.log('🔄 STEP 2: Setting checkout flag and redirecting...');
+      
+      // Set flag in sessionStorage to indicate we're in checkout flow
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('checkout_in_progress', 'true');
+        sessionStorage.setItem('checkout_cart_backup', JSON.stringify(cart));
+      }
+      
+      // Add delay to ensure state is set
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      try {
+        if (!isAuthenticated || !user) {
+          const redirectUrl = '/login?redirect=' + encodeURIComponent('/checkout');
+          console.log('🔐 → Guest user: Redirecting to:', redirectUrl);
+          router.push(redirectUrl);
+        } else {
+          console.log('🔄 → Authenticated user: Redirecting to /checkout');
+          router.push('/checkout');
+        }
+        
+        // Verify redirect attempt
+        setTimeout(() => {
+          console.log('🔍 Post-redirect check - Current pathname:', window.location.pathname);
+          if (window.location.pathname === '/' || window.location.pathname === '') {
+            console.error('❌ REDIRECT FAILED: Still on home page!');
+          }
+        }, 500);
+        
+      } catch (redirectError) {
+        console.error('❌ REDIRECT ERROR:', redirectError);
+        throw new Error(`Redirect failed: ${redirectError.message}`);
+      }
+      
+      console.log('✅ CHECKOUT FLOW COMPLETED');
+      
     } catch (error) {
-      console.error('❌ Failed to add items to cart:', error);
-      alert('Failed to prepare cart for checkout. Please try again.');
+      console.error('❌ CHECKOUT FLOW FAILED:', error);
+      alert(`Failed to prepare cart for checkout: ${error.message}`);
+    } finally {
+      setIsRedirecting(false);
     }
   };
 
-  // Guest Checkout (calls cart API first, then redirects to checkout page)
-  const handleGuestCheckout = async () => {
-    console.log('👤 Guest Checkout - Adding to cart first, then redirecting to checkout');
+  // OPTION 1: Quick Checkout (API only - clears cart)
+  const handleQuickCheckout = async () => {
+    console.log('\n⚡ =============================================');
+    console.log('⚡ QUICK CHECKOUT - API ONLY (CLEARS CART)');
+    console.log('⚡ =============================================');
     
-    // Check if cart has items
-    if (!hasItems || cart.length === 0) {
+    if (!cart || cart.length === 0) {
       alert('Your cart is empty. Please add some items before checkout.');
       return;
     }
-    
+
     try {
-      // STEP 1: Call the cart API to add items to backend
-      console.log('📤 Step 1: Adding items to backend cart via API...');
-      await processCheckout();
-      
-      // STEP 2: Close the floating cart
-      setIsOpen(false);
-      
-      // STEP 3: Navigate to checkout page (same as login checkout)
-      console.log('🔄 Step 2: Redirecting to checkout page');
-      router.push('/checkout');
+      console.log('🚀 Calling cart API with cart clearing...');
+      const result = await processCheckout(true); // true = clear cart after API
+      console.log('✅ Quick checkout completed:', result);
       
     } catch (error) {
-      console.error('❌ Failed to add items to cart:', error);
-      alert('Failed to prepare cart for checkout. Please try again.');
+      console.error('❌ Quick checkout failed:', error);
+      alert(`Failed to add items to cart: ${error.message}`);
     }
+  };
+
+  // Test redirect function
+  const testRedirect = () => {
+    console.log('🧪 Testing direct redirect to /checkout...');
+    // Set test flag
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('checkout_in_progress', 'true');
+      sessionStorage.setItem('checkout_cart_backup', JSON.stringify(cart));
+    }
+    setIsOpen(false);
+    router.push('/checkout');
+  };
+
+  // OPTION 2: Full Checkout
+  const handleFullCheckout = async () => {
+    await handleCartApiThenCheckout('FULL');
+  };
+
+  // OPTION 3: Login & Checkout
+  const handleLoginCheckout = async () => {
+    await handleCartApiThenCheckout('LOGIN');
+  };
+
+  // OPTION 4: Guest Checkout
+  const handleGuestCheckout = async () => {
+    await handleCartApiThenCheckout('GUEST');
   };
 
   return (
@@ -160,7 +230,23 @@ const FloatingCartIcon = () => {
                 </button>
               </div>
 
-              {/* Cart Items */}
+              {/* Debug Status */}
+              <div className="p-2 bg-green-50 dark:bg-green-900 text-xs">
+                <div className="font-semibold text-green-800 dark:text-green-200">
+                  FIXED: Cart preserved during redirect
+                </div>
+                <div className="text-green-600 dark:text-green-300">
+                  Cart: {cart?.length || 0} | Auth: {isAuthenticated ? 'Yes' : 'No'} | Redirecting: {isRedirecting ? 'Yes' : 'No'}
+                </div>
+                <button 
+                  onClick={testRedirect}
+                  className="mt-1 text-xs bg-green-200 hover:bg-green-300 text-green-800 px-2 py-1 rounded"
+                >
+                  Test Direct Redirect (Preserve Cart)
+                </button>
+              </div>
+
+              {/* Cart Items - Same as before */}
               <div className="flex-1 overflow-y-auto p-4">
                 {cart.length === 0 ? (
                   <div className="text-center text-gray-500 dark:text-gray-400 mt-8">
@@ -180,7 +266,7 @@ const FloatingCartIcon = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {cart.map((item, index) => (
+                    {cart.map((item) => (
                       <div key={`${item.id}-${cartUpdateCount}`} className="flex items-center space-x-3 bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
                         {/* Product Image */}
                         {item.image && (
@@ -245,7 +331,7 @@ const FloatingCartIcon = () => {
                 )}
               </div>
 
-              {/* Footer - ENHANCED WITH MULTIPLE CHECKOUT OPTIONS */}
+              {/* Footer */}
               {cart.length > 0 && (
                 <div className="border-t border-gray-200 dark:border-gray-700 p-4 space-y-4">
                   {/* Total */}
@@ -254,13 +340,13 @@ const FloatingCartIcon = () => {
                     <span>({totalItems} items)</span>
                   </div>
 
-                  {/* CHECKOUT OPTIONS SECTION */}
+                  {/* CHECKOUT OPTIONS */}
                   <div className="space-y-3">
                     <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 text-center border-b border-gray-200 dark:border-gray-600 pb-2">
-                      Choose Checkout Method
+                      Checkout Options (Cart Preserved)
                     </h4>
 
-                    {/* OPTION 1: QUICK CHECKOUT API (Your Original Feature) */}
+                    {/* OPTION 1: Quick Checkout (API Only) */}
                     <button 
                       onClick={handleQuickCheckout}
                       disabled={isProcessing || cart.length === 0}
@@ -278,93 +364,91 @@ const FloatingCartIcon = () => {
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
-                          Quick Processing... ({processedItems.length}/{cart.length})
+                          Processing... ({processedItems.length}/{cart.length})
                         </>
                       ) : (
                         <>
                           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                           </svg>
-                          Quick Checkout (Add to Cart)
+                          Quick Add to Cart (Clears Cart)
                         </>
                       )}
                     </button>
-                    <p className="text-xs text-center text-gray-500 dark:text-gray-400">
-                      Instantly add items to your backend cart
-                    </p>
 
-                    {/* OPTION 2: FULL CHECKOUT (Order Creation) */}
+                    {/* OPTION 2: Full Checkout */}
                     <button 
                       onClick={handleFullCheckout}
-                      disabled={isCreatingOrder || cart.length === 0}
+                      disabled={isProcessing || isRedirecting || cart.length === 0}
                       className={`
                         w-full py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center
-                        ${isCreatingOrder 
+                        ${(isProcessing || isRedirecting)
                           ? 'bg-yellow-500 text-black cursor-not-allowed' 
                           : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl'
                         }
                       `}
                     >
-                      {isCreatingOrder ? (
+                      {isRedirecting ? (
                         <>
                           <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
-                          Creating Order...
+                          Redirecting to Checkout...
                         </>
-                      ) : !isAuthenticated ? (
+                      ) : isProcessing ? (
                         <>
-                          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
-                          Login & Place Order
+                          API → Redirecting...
                         </>
                       ) : (
                         <>
                           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                           </svg>
-                          Complete Order (Full Checkout)
+                          API → Checkout (Keep Cart)
                         </>
                       )}
                     </button>
-                    <p className="text-xs text-center text-gray-500 dark:text-gray-400">
-                      Create order with delivery details & payment
-                    </p>
 
-                    {/* OPTION 3: GUEST CHECKOUT */}
+                    {/* OPTION 3: Guest Checkout */}
                     <button 
                       onClick={handleGuestCheckout}
-                      disabled={isCreatingOrder || cart.length === 0}
-                      className="w-full py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center bg-gray-600 hover:bg-gray-700 text-white shadow-md hover:shadow-lg"
+                      disabled={isProcessing || isRedirecting || cart.length === 0}
+                      className="w-full py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center bg-gray-600 hover:bg-gray-700 text-white shadow-md hover:shadow-lg disabled:opacity-50"
                     >
                       <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 8h6M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                      Guest Checkout
+                      Guest: API → Checkout (Keep Cart)
                     </button>
 
-                    {/* Progress Bar for Quick Checkout */}
-                    {isProcessing && (
+                    {/* Progress Bar */}
+                    {(isProcessing || isRedirecting) && (
                       <div className="mt-3">
                         <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
-                          <span>Processing items...</span>
+                          <span>
+                            {isProcessing && !isRedirecting ? 'Step 1: Adding to cart via API...' : 
+                             isRedirecting ? 'Step 2: Redirecting to checkout...' : 
+                             'Processing...'}
+                          </span>
                           <span>{Math.round(progressPercentage)}%</span>
                         </div>
                         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                           <div 
                             className="bg-orange-500 h-3 rounded-full transition-all duration-300 ease-out"
-                            style={{ width: `${progressPercentage}%` }}
+                            style={{ width: `${isRedirecting ? '100' : progressPercentage}%` }}
                           ></div>
                         </div>
                       </div>
                     )}
                   </div>
 
-                  {/* ADDITIONAL OPTIONS */}
+                  {/* Additional Options */}
                   <div className="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-600">
-                    {/* View Cart Button */}
                     <button
                       onClick={() => {
                         router.push('/cart');
@@ -375,7 +459,6 @@ const FloatingCartIcon = () => {
                       View Full Cart
                     </button>
 
-                    {/* Clear Cart Button */}
                     <button
                       onClick={clearCart}
                       className="w-full bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800 text-red-800 dark:text-red-200 py-2 rounded-lg font-medium transition-colors"
