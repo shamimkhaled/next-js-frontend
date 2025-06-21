@@ -1,9 +1,10 @@
-// app/payment/success/page.js - Complete file (Fixed)
+// app/payment/success/page.js - Updated with payment verification
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
+import { verifyPayment } from '@/lib/paymentApi';
 import Link from 'next/link';
 import Head from 'next/head';
 
@@ -20,7 +21,7 @@ function PaymentSuccessLoading() {
           Verifying your payment...
         </h2>
         <p className="text-gray-600 dark:text-gray-400">
-          Please wait while we confirm your payment.
+          Please wait while we confirm your payment with our systems.
         </p>
       </div>
     </div>
@@ -37,6 +38,7 @@ function PaymentSuccessContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [verificationStatus, setVerificationStatus] = useState('pending');
   const [verificationError, setVerificationError] = useState(null);
+  const [verificationData, setVerificationData] = useState(null);
   const [mounted, setMounted] = useState(false);
 
   // Handle client-side mounting
@@ -65,25 +67,52 @@ function PaymentSuccessContent() {
           const sessionId = searchParams.get('session_id');
           const success = searchParams.get('success');
           
-          // Simple verification - check if we have the required data
-          if (paymentData.session_id && paymentData.order_id) {
-            console.log('✅ Payment data found, marking as successful');
+          // Use session_id from URL if available, otherwise from stored data
+          const finalSessionId = sessionId || paymentData.session_id;
+          const finalOrderId = paymentData.order_id;
+          
+          if (finalSessionId && finalOrderId) {
+            console.log('🔍 Starting payment verification...');
+            console.log('📋 Session ID:', finalSessionId);
+            console.log('📋 Order ID:', finalOrderId);
             
-            // Additional check from URL parameters
-            if (sessionId && sessionId === paymentData.session_id) {
-              console.log('✅ Session ID matches URL parameter');
+            try {
+              // Call your verification API
+              const verificationResult = await verifyPayment(finalSessionId, finalOrderId);
+              
+              console.log('✅ Payment verification completed successfully:', verificationResult);
+              setVerificationStatus('success');
+              setVerificationData(verificationResult);
+              
+              // Only clear cart and pending payment after successful verification
+              clearCart();
+              localStorage.removeItem('pendingPayment');
+              
+            } catch (verificationError) {
+              console.error('❌ Payment verification failed:', verificationError);
+              setVerificationError(verificationError.message);
+              setVerificationStatus('failed');
+              // Don't clear cart or pending payment if verification fails
             }
             
-            setVerificationStatus('success');
-            
-            // Clear cart and pending payment
-            clearCart();
-            localStorage.removeItem('pendingPayment');
-            
           } else {
-            console.warn('⚠️ Missing session_id or order_id');
-            setVerificationStatus('failed');
-            setVerificationError('Missing payment verification data');
+            console.warn('⚠️ Missing session_id or order_id for verification');
+            console.warn('⚠️ Available data:', { 
+              sessionId: finalSessionId, 
+              orderId: finalOrderId,
+              urlParams: { sessionId, success }
+            });
+            
+            // If we have URL success parameter, we can still show success
+            if (success === 'true' && finalOrderId) {
+              console.log('✅ Payment success confirmed from URL, but verification skipped');
+              setVerificationStatus('success_unverified');
+              clearCart();
+              localStorage.removeItem('pendingPayment');
+            } else {
+              setVerificationStatus('failed');
+              setVerificationError('Missing payment verification data');
+            }
           }
         } else {
           console.warn('⚠️ No pending payment found in localStorage');
@@ -93,9 +122,16 @@ function PaymentSuccessContent() {
           const success = searchParams.get('success');
           
           if (sessionId && success === 'true') {
-            console.log('✅ Payment success confirmed from URL parameters');
-            setVerificationStatus('success');
+            console.log('✅ Payment success confirmed from URL parameters only');
+            setVerificationStatus('success_unverified');
             clearCart();
+            
+            // Store basic info from URL
+            setPaymentInfo({
+              session_id: sessionId,
+              timestamp: Date.now(),
+              source: 'url_params'
+            });
           } else {
             setVerificationStatus('failed');
             setVerificationError('No payment information found');
@@ -171,7 +207,10 @@ function PaymentSuccessContent() {
     );
   }
 
-  // Show success state
+  // Show success state (both verified and unverified)
+  const isVerified = verificationStatus === 'success';
+  const isUnverified = verificationStatus === 'success_unverified';
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -191,42 +230,91 @@ function PaymentSuccessContent() {
             Thank you for your order! Your payment has been processed successfully and you should receive a confirmation email shortly.
           </p>
 
+          {/* Verification Status */}
+          {isVerified && (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6">
+              <div className="flex items-center justify-center">
+                <svg className="h-5 w-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-green-800 dark:text-green-300 font-medium">
+                  ✅ Payment Verified Successfully
+                </span>
+              </div>
+            </div>
+          )}
+
+          {isUnverified && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+              <div className="flex items-center justify-center">
+                <svg className="h-5 w-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-blue-800 dark:text-blue-300 font-medium">
+                  ℹ️ Payment Completed (Verification Pending)
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Payment Info */}
           {paymentInfo && (
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-6 mb-6">
-              <h3 className="text-lg font-semibold text-green-800 dark:text-green-300 mb-4">
-                Order Confirmation
+            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                {isVerified ? 'Verified Order Details' : 'Order Confirmation'}
               </h3>
               <div className="space-y-2 text-sm">
                 {paymentInfo.order_number && (
                   <div className="flex justify-between">
-                    <span className="text-green-700 dark:text-green-400">Order Number:</span>
-                    <span className="text-green-900 dark:text-green-200 font-mono font-semibold">
+                    <span className="text-gray-600 dark:text-gray-400">Order Number:</span>
+                    <span className="text-gray-900 dark:text-white font-mono font-semibold">
                       {paymentInfo.order_number}
                     </span>
                   </div>
                 )}
+                
                 {paymentInfo.payment_id && (
                   <div className="flex justify-between">
-                    <span className="text-green-700 dark:text-green-400">Payment ID:</span>
-                    <span className="text-green-900 dark:text-green-200 font-mono">
+                    <span className="text-gray-600 dark:text-gray-400">Payment ID:</span>
+                    <span className="text-gray-900 dark:text-white font-mono">
                       {paymentInfo.payment_id}
                     </span>
                   </div>
                 )}
+                
+                {paymentInfo.session_id && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Session ID:</span>
+                    <span className="text-gray-900 dark:text-white font-mono text-xs">
+                      {paymentInfo.session_id.substring(0, 20)}...
+                    </span>
+                  </div>
+                )}
+                
                 {paymentInfo.total_amount && (
                   <div className="flex justify-between">
-                    <span className="text-green-700 dark:text-green-400">Amount Paid:</span>
-                    <span className="text-green-900 dark:text-green-200 font-semibold">
+                    <span className="text-gray-600 dark:text-gray-400">Amount Paid:</span>
+                    <span className="text-gray-900 dark:text-white font-semibold">
                       ${parseFloat(paymentInfo.total_amount).toFixed(2)}
                     </span>
                   </div>
                 )}
+                
                 <div className="flex justify-between">
-                  <span className="text-green-700 dark:text-green-400">Payment Date:</span>
-                  <span className="text-green-900 dark:text-green-200">
+                  <span className="text-gray-600 dark:text-gray-400">Payment Date:</span>
+                  <span className="text-gray-900 dark:text-white">
                     {new Date().toLocaleDateString()}
                   </span>
                 </div>
+                
+                {verificationData && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Verification Status:</span>
+                    <span className="text-green-600 font-semibold">
+                      {verificationData.status || 'Verified'}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}

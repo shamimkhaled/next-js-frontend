@@ -1,4 +1,4 @@
-// app/login/LoginForm.js - COMPLETELY FIXED VERSION
+// app/login/LoginForm.js - Fixed to use email field
 'use client';
 
 import { useState, Suspense } from 'react';
@@ -13,7 +13,7 @@ function LoginFormContent() {
   const { login, isLoggingIn, error: authError, clearError } = useAuth();
   
   const [formData, setFormData] = useState({
-    username: '', // Changed from email to username to match API
+    username: '', // This will be treated as email by the API
     password: ''
   });
   const [localError, setLocalError] = useState('');
@@ -38,7 +38,14 @@ function LoginFormContent() {
 
     // Basic validation
     if (!formData.username.trim()) {
-      setLocalError('Username or email is required');
+      setLocalError('Email is required');
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.username.trim())) {
+      setLocalError('Please enter a valid email address');
       return;
     }
 
@@ -48,10 +55,7 @@ function LoginFormContent() {
     }
 
     try {
-      console.log('🔐 Attempting login with:', { 
-        username: formData.username, 
-        password: '[HIDDEN]' 
-      });
+      console.log('🔐 Attempting login with email:', formData.username);
       
       // Use the auth context login function
       const result = await login(formData);
@@ -103,18 +107,18 @@ function LoginFormContent() {
           <div className="space-y-4">
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Username or Email
+                Email Address
               </label>
               <input
                 id="username"
                 name="username"
-                type="text"
-                autoComplete="username"
+                type="email"
+                autoComplete="email"
                 required
                 value={formData.username}
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-orange-500 focus:border-orange-500"
-                placeholder="Enter your username or email"
+                placeholder="Enter your email address"
                 disabled={isLoggingIn}
               />
             </div>
@@ -204,6 +208,14 @@ function LoginFormContent() {
             </p>
           </div>
         </form>
+
+        {/* Debug info in development */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mt-4 p-3 bg-gray-100 dark:bg-gray-800 rounded text-xs">
+            <p><strong>Debug:</strong> API expects email format</p>
+            <p><strong>Working example:</strong> ab.rohan462@gmail.com</p>
+          </div>
+        )}
       </div>
     </div>
   );
