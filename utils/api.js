@@ -73,12 +73,10 @@ async function fetchAPI(endpoint, options = {}) {
 /**
  * Register new user
  * @param {Object} userData - User registration data
+ * @param {string} userData.username - Username
  * @param {string} userData.email - Email
  * @param {string} userData.password - Password
  * @param {string} userData.password_confirm - Password confirmation
- * @param {string} userData.first_name - First name
- * @param {string} userData.last_name - Last name
- * @param {string} userData.phone - Phone number
  * @returns {Promise<Object>} Registration response
  */
 export async function registerUser(userData) {
@@ -110,15 +108,6 @@ export async function registerUser(userData) {
       if (data.password_confirm && Array.isArray(data.password_confirm)) {
         throw new Error(`Password confirmation: ${data.password_confirm[0]}`);
       }
-      if (data.phone && Array.isArray(data.phone)) {
-        throw new Error(`Phone: ${data.phone[0]}`);
-      }
-      if (data.first_name && Array.isArray(data.first_name)) {
-        throw new Error(`First name: ${data.first_name[0]}`);
-      }
-      if (data.last_name && Array.isArray(data.last_name)) {
-        throw new Error(`Last name: ${data.last_name[0]}`);
-      }
       
       const errorMessage = data.detail || data.message || data.error || 
                           (data.non_field_errors && data.non_field_errors[0]) ||
@@ -130,32 +119,25 @@ export async function registerUser(userData) {
 
     // Store token and user data if login is automatic after registration
     if (typeof window !== 'undefined') {
-      // 🔥 UPDATED: Extract tokens from nested tokens object
-      const token = data.tokens?.access || data.token || data.access_token || data.access || data.key;
+      const token = data.token || data.access_token || data.access || data.key;
       const user = data.user || data;
       
       if (token) {
         localStorage.setItem('auth_token', token);
         localStorage.setItem('user_data', JSON.stringify(user));
         
-        // 🔥 UPDATED: Extract refresh token from nested tokens object
-        if (data.tokens?.refresh || data.refresh_token || data.refresh) {
-          localStorage.setItem('refresh_token', data.tokens?.refresh || data.refresh_token || data.refresh);
+        if (data.refresh_token || data.refresh) {
+          localStorage.setItem('refresh_token', data.refresh_token || data.refresh);
         }
         
         console.log('✅ Auto-login after registration successful');
-        console.log('🔑 Access token stored:', token.substring(0, 20) + '...');
-      } else {
-        console.warn('⚠️ No access token found in registration response');
-        console.warn('⚠️ Response structure:', JSON.stringify(data, null, 2));
       }
     }
 
     return {
-      // 🔥 UPDATED: Return tokens from nested tokens object
-      token: data.tokens?.access || data.token || data.access_token || data.access || data.key,
+      token: data.token || data.access_token || data.access || data.key,
       user: data.user || data,
-      refresh_token: data.tokens?.refresh || data.refresh_token || data.refresh,
+      refresh_token: data.refresh_token || data.refresh,
       ...data
     };
   } catch (error) {
@@ -215,8 +197,7 @@ export async function loginUser(credentials) {
     
     // Store token and user data (only in browser environment)
     if (typeof window !== 'undefined') {
-      // Handle both nested tokens format and flat format
-      const token = data.tokens?.access || data.token || data.access_token || data.access || data.key;
+      const token = data.token || data.access_token || data.access || data.key;
       const user = data.user || data;
       
       if (token) {
@@ -224,8 +205,8 @@ export async function loginUser(credentials) {
         localStorage.setItem('user_data', JSON.stringify(user));
         
         // Also store refresh token if provided
-        if (data.tokens?.refresh || data.refresh_token || data.refresh) {
-          localStorage.setItem('refresh_token', data.tokens?.refresh || data.refresh_token || data.refresh);
+        if (data.refresh_token || data.refresh) {
+          localStorage.setItem('refresh_token', data.refresh_token || data.refresh);
         }
         
         console.log('✅ Token and user data stored successfully');
@@ -236,9 +217,9 @@ export async function loginUser(credentials) {
     }
 
     return {
-      token: data.tokens?.access || data.token || data.access_token || data.access || data.key,
+      token: data.token || data.access_token || data.access || data.key,
       user: data.user || data,
-      refresh_token: data.tokens?.refresh || data.refresh_token || data.refresh,
+      refresh_token: data.refresh_token || data.refresh,
       ...data
     };
   } catch (error) {
@@ -437,18 +418,45 @@ export async function getProducts(params = {}) {
     const queryString = searchParams.toString();
     const endpoint = `/products/${queryString ? `?${queryString}` : ''}`;
     
-    console.log(`🔍 Fetching products with endpoint: ${endpoint}`);
     const data = await fetchAPI(endpoint);
+    return data;
     
-    return {
-      results: Array.isArray(data.results) ? data.results : Array.isArray(data) ? data : [],
-      count: data.count || 0,
-      next: data.next || null,
-      previous: data.previous || null,
-    };
   } catch (error) {
     console.error('Failed to fetch products:', error);
-    return { results: [], count: 0, next: null, previous: null };
+    return { 
+      results: [], 
+      count: 0, 
+      next: null, 
+      previous: null 
+    };
+  }
+}
+
+/**
+ * Get category filters
+ * @param {string} slug - Category slug
+ * @returns {Promise<Object>} Filters data
+ */
+export async function getCategoryFilters(slug) {
+  try {
+    console.log(`🔍 Fetching filters for category: ${slug}`);
+    const data = await fetchAPI(`/categories/${slug}/filters/`);
+    console.log('✅ Filters API response:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Error fetching category filters:', error);
+    return {
+      price_range: { min: 0, max: 1000 },
+      brands: [],
+      spice_levels: [],
+      dietary_preferences: [],
+      sort_options: [
+        { value: 'name', label: 'Name A-Z' },
+        { value: '-name', label: 'Name Z-A' },
+        { value: 'price', label: 'Price Low-High' },
+        { value: '-price', label: 'Price High-Low' }
+      ]
+    };
   }
 }
 
@@ -464,21 +472,19 @@ export async function getProductBySlug(slug) {
 /**
  * Search products
  * @param {string} query - Search query
- * @param {Object} filters - Additional filters
+ * @param {Object} params - Additional search parameters
  * @returns {Promise<Object>} Search results
  */
-export async function searchProducts(query, filters = {}) {
+export async function searchProducts(query, params = {}) {
   try {
     const searchParams = new URLSearchParams({
       search: query,
-      ...filters
+      ...params
     });
     
-    const data = await fetchAPI(`/products/search/?${searchParams.toString()}`);
-    return {
-      results: Array.isArray(data.results) ? data.results : [],
-      count: data.count || 0,
-    };
+    const endpoint = `/products/search/?${searchParams.toString()}`;
+    const data = await fetchAPI(endpoint);
+    return data;
   } catch (error) {
     console.error('Failed to search products:', error);
     return { results: [], count: 0 };
@@ -491,12 +497,14 @@ export async function searchProducts(query, filters = {}) {
 
 /**
  * Add item to cart
- * @param {Object} item - Cart item data
- * @returns {Promise<Object>} Add to cart response
+ * @param {Object} item - Cart item
+ * @param {string} item.product_id - Product ID
+ * @param {number} item.quantity - Quantity
+ * @returns {Promise<Object>} Cart response
  */
 export async function addToCart(item) {
   try {
-    console.log('🛒 Adding to cart:', item);
+    console.log('🛒 Adding item to cart:', item);
     
     const response = await fetch(`${API_BASE_URL}/cart/add/`, {
       method: 'POST',
