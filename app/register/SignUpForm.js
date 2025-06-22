@@ -1,20 +1,21 @@
-// app/register/SignUpForm.js - FIXED VERSION
+// app/register/SignUpForm.js - FIXED VERSION with Phone Field
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '@/contexts/AuthContext'; // 🔥 ADD THIS
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function SignUpForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { register, isRegistering, error: authError } = useAuth(); // 🔥 USE AUTH CONTEXT
+  const { register, isRegistering, error: authError } = useAuth();
   
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
+    phone: '', // 🔥 ADDED PHONE FIELD
     password: '',
     confirmPassword: '',
     agreeToTerms: false
@@ -69,14 +70,28 @@ export default function SignUpForm() {
       return;
     }
 
+    // Basic phone validation
+    if (!formData.phone.trim()) {
+      setLocalError('Phone number is required');
+      return;
+    }
+
     try {
-      // 🔥 USE THE AUTH CONTEXT REGISTER FUNCTION INSTEAD OF DIRECT API CALL
+      // 🔥 UPDATED USER DATA TO MATCH API FORMAT
       const userData = {
-        first_name: formData.firstName,
-        last_name: formData.lastName,
         email: formData.email,
         password: formData.password,
+        password_confirm: formData.confirmPassword, // 🔥 ADDED THIS FIELD
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        phone: formData.phone // 🔥 ADDED THIS FIELD
       };
+      
+      console.log('📝 Registration data being sent:', {
+        ...userData,
+        password: '[HIDDEN]',
+        password_confirm: '[HIDDEN]'
+      });
       
       await register(userData);
       
@@ -181,6 +196,24 @@ export default function SignUpForm() {
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter your email"
+              />
+            </div>
+
+            {/* 🔥 ADDED PHONE FIELD */}
+            <div>
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Phone Number
+              </label>
+              <input
+                id="phone"
+                name="phone"
+                type="tel"
+                autoComplete="tel"
+                required
+                value={formData.phone}
+                onChange={handleChange}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter your phone number (e.g., +1234567890)"
               />
             </div>
             
