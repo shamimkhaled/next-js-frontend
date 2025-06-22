@@ -623,18 +623,12 @@ export default function Navbar() {
               ))}
 
               {/* Other Navigation Items - EXACT ORIGINAL */}
-              <Link href="/menu" className="text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium">
-                Menu
-              </Link>
-              <Link href="/offers" className="text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium">
-                Offers
-              </Link>
+              
+             
               <Link href="/about" className="text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium">
                 About
               </Link>
-              <Link href="/contact" className="text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium">
-                Contact
-              </Link>
+              
             </div>
           </div>
         </div>
