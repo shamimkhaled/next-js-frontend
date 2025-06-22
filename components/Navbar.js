@@ -628,7 +628,9 @@ export default function Navbar() {
               <Link href="/about" className="text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium">
                 About
               </Link>
-              
+              <Link href="/contact" className="text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium">
+                Contact
+              </Link>
             </div>
           </div>
         </div>
