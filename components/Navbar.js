@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCategories, searchProductsAutocomplete } from '@/lib/api';
+import { getCategories, searchProductsAutocomplete } from '@/utils/api';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext'; // 🆕 ONLY ADDITION
 
@@ -500,24 +500,44 @@ export default function Navbar() {
           <div className="flex justify-between items-center h-16">
             
             {/* Logo & Brand - EXACT ORIGINAL */}
-            <div className="flex items-center">
-              <Link href="/" className="flex items-center space-x-3">
-                <div 
-                  className="h-10 w-10 rounded-xl flex items-center justify-center text-white font-bold text-lg"
-                  style={{ backgroundColor: `#${settings.primary_color}` }}
-                >
-                  {settings.site_name?.[0]?.toUpperCase() || 'F'}
-                </div>
-                <div className="hidden sm:block">
-                  <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                    {settings.site_name || 'FoodHub'}
-                  </h1>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 -mt-1">
-                    {settings.tagline || 'Delicious Food Delivered'}
-                  </p>
-                </div>
-              </Link>
-            </div>
+
+             {/* Logo & Brand - WITH LOGO SUPPORT */}
+<div className="flex items-center">
+  <Link href="/" className="flex items-center space-x-3">
+    {/* Logo Image or Fallback */}
+    {settings.logo ? (
+      <img 
+        src={settings.logo}
+        alt={`${settings.site_name || 'FoodHub'} Logo`}
+        className="h-10 w-auto object-contain"
+        onError={(e) => {
+          // Fallback to icon if image fails to load
+          e.target.style.display = 'none';
+          e.target.nextSibling.style.display = 'flex';
+        }}
+      />
+    ) : null}
+    
+    {/* Fallback Icon (hidden if logo exists and loads successfully) */}
+    <div 
+      className={`h-10 w-10 rounded-xl flex items-center justify-center text-white font-bold text-lg ${settings.logo ? 'hidden' : ''}`}
+      style={{ backgroundColor: `#${settings.primary_color}` }}
+    >
+      {settings.site_name?.[0]?.toUpperCase() || 'F'}
+    </div>
+    
+    {/* Site Name and Tagline */}
+    <div className="hidden sm:block">
+      <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+        {settings.site_name || 'FoodHub'}
+      </h1>
+      <p className="text-xs text-gray-500 dark:text-gray-400 -mt-1">
+        {settings.tagline || 'Delicious Food Delivered'}
+      </p>
+    </div>
+  </Link>
+</div>
+           
 
             {/* Search Bar - CENTERED */}
             <div className="flex-1 max-w-lg mx-4">
