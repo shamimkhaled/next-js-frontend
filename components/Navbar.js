@@ -509,7 +509,7 @@ export default function Navbar() {
       <img 
         src={settings.logo}
         alt={`${settings.site_name || 'FoodHub'} Logo`}
-        className="h-10 w-auto object-contain"
+        className="h-14 w-auto object-contain"
         onError={(e) => {
           // Fallback to icon if image fails to load
           e.target.style.display = 'none';
@@ -673,32 +673,49 @@ export default function Navbar() {
           <div className="fixed inset-y-0 left-0 w-full max-w-sm bg-white dark:bg-gray-900 shadow-2xl overflow-y-auto transform transition-transform duration-300 ease-out">
             
             {/* Header - EXACT ORIGINAL */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex items-center space-x-3">
-                <div 
-                  className="h-8 w-8 rounded-lg flex items-center justify-center text-white font-bold"
-                  style={{ backgroundColor: `#${settings.primary_color}` }}
-                >
-                  {settings.site_name?.[0]?.toUpperCase() || 'F'}
-                </div>
-                <div>
-                  <h2 className="font-bold text-gray-900 dark:text-white">
-                    {settings.site_name || 'FoodHub'}
-                  </h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {settings.tagline || 'Delicious Food Delivered'}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setMobileMenuOpen(false)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+            {/* Header - WITH LOGO SUPPORT */}
+<div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+  <div className="flex items-center space-x-3">
+    {/* Mobile Logo */}
+    {settings.logo ? (
+      <img 
+        src={settings.logo}
+        alt={`${settings.site_name || 'FoodHub'} Logo`}
+        className="h-8 w-auto object-contain"
+        onError={(e) => {
+          // Fallback to icon if image fails
+          e.target.style.display = 'none';
+          e.target.nextSibling.style.display = 'flex';
+        }}
+      />
+    ) : null}
+    
+    {/* Fallback Icon */}
+    <div 
+      className={`h-8 w-8 rounded-lg flex items-center justify-center text-white font-bold ${settings.logo ? 'hidden' : ''}`}
+      style={{ backgroundColor: `#${settings.primary_color}` }}
+    >
+      {settings.site_name?.[0]?.toUpperCase() || 'F'}
+    </div>
+    
+    <div>
+      <h2 className="font-bold text-gray-900 dark:text-white">
+        {settings.site_name || 'FoodHub'}
+      </h2>
+      <p className="text-xs text-gray-500 dark:text-gray-400">
+        {settings.tagline || 'Delicious Food Delivered'}
+      </p>
+    </div>
+  </div>
+  <button
+    onClick={() => setMobileMenuOpen(false)}
+    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
+  >
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  </button>
+</div>
 
             {/* Content */}
             <div className="p-6 space-y-6">
