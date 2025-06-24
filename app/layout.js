@@ -25,14 +25,6 @@ const geistMono = Geist_Mono({
   display: 'swap',
 });
 
-// Helper function to get logo URL
-function getLogoUrl(logoPath) {
-  if (!logoPath) return null;
-  if (logoPath.startsWith('http')) return logoPath;
-  if (logoPath.startsWith('/')) return logoPath;
-  return `https://seashell-app-4gkvz.ondigitalocean.app/${logoPath}`;
-}
-
 // Generate viewport separately (Next.js 14+ requirement)
 export const viewport = {
   width: 'device-width',
@@ -43,27 +35,12 @@ export const viewport = {
 export async function generateMetadata() {
   try {
     const settings = await getSettings();
-    const logoUrl = getLogoUrl(settings.logo || settings.favicon);
     
     return {
       title: `${settings.site_name || 'Your Store'} - ${settings.tagline || 'Quality Food Delivery'}`,
       description: settings.meta_description || 'Order fresh, delicious food for delivery or pickup',
       keywords: settings.meta_keywords || "food delivery, restaurant, online ordering, fresh food, fast delivery",
       robots: 'index, follow',
-      icons: {
-        icon: [
-          // Use your logo as the main icon
-          ...(logoUrl ? [{ url: logoUrl, sizes: 'any' }] : []),
-          // Fallback to traditional favicon
-          { url: '/favicon.ico', sizes: 'any' },
-        ],
-        apple: [
-          // Use logo for Apple devices too
-          ...(logoUrl ? [{ url: logoUrl }] : []),
-          { url: '/apple-touch-icon.png' },
-        ],
-        shortcut: logoUrl || '/favicon.ico',
-      },
       openGraph: {
         title: settings.site_name || 'Your Store',
         description: settings.meta_description || 'Order fresh, delicious food for delivery or pickup',
@@ -115,8 +92,6 @@ export default async function RootLayout({ children }) {
     };
   }
 
-  const logoUrl = getLogoUrl(initialSettings.logo || initialSettings.favicon);
-
   return (
     <html lang="en" className="scroll-smooth">
       <head>
@@ -128,8 +103,7 @@ export default async function RootLayout({ children }) {
         {/* Viewport meta tag */}
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         
-        {/* Your logo as favicon */}
-        {logoUrl && <link rel="icon" href={logoUrl} />}
+        {/* Favicon */}
         <link rel="icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         
