@@ -1,87 +1,27 @@
-// app/page.js - FIXED with correct API imports
+// app/page.js - FIXED VERSION without dynamic imports
 import { Suspense } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import ProductsSection from '@/components/ProductsSection';
 import HeroImage from '@/components/HeroImage';
-// 🔧 FIX: Import from utils/api.js instead of lib/api.js
-import { getProducts, getCategories } from '@/utils/api';
+import ProductsSection from '@/components/ProductsSection';
 
 // ============================================================================
-// FAST LOADING CONFIGURATION
+// STATIC GENERATION FOR MAXIMUM SPEED
 // ============================================================================
 
-export const revalidate = 60; // Revalidate every 60 seconds
+export const dynamic = 'force-static';
+export const revalidate = 300; // Revalidate every 5 minutes
+
+// ============================================================================
+// ULTRA FAST PAGE - NO SERVER-SIDE API CALLS
+// ============================================================================
 
 export default async function Home({ searchParams }) {
-  // Get URL parameters
-  const page = parseInt(searchParams?.page) || 1;
-  const category = searchParams?.category || '';
-  
-  console.log('🏠 Home page loading - Page:', page, 'Category:', category);
-
-  // Initialize data
-  let products = null;
-  let categories = [];
-  let error = null;
-
-  try {
-    // Build API parameters
-    const apiParams = { page };
-    if (category && category !== 'all') {
-      apiParams.category = category;
-    }
-
-    console.log('📡 Fetching with params:', apiParams);
-    
-    // 🔧 FIX: Add timeout to prevent hanging
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('API timeout')), 5000)
-    );
-
-    // Fetch data with timeout protection
-    const dataPromise = Promise.allSettled([
-      getProducts(apiParams),
-      getCategories()
-    ]);
-
-    const results = await Promise.race([dataPromise, timeoutPromise]);
-
-    // Handle products response
-    if (results[0].status === 'fulfilled') {
-      products = results[0].value;
-      console.log('✅ Products loaded:', products?.results?.length || 0, 'items');
-    } else {
-      console.error('❌ Products failed:', results[0].reason?.message);
-      products = { results: [], count: 0, next: null, previous: null };
-    }
-
-    // Handle categories response
-    if (results[1].status === 'fulfilled') {
-      categories = results[1].value || [];
-      console.log('✅ Categories loaded:', categories.length, 'items');
-    } else {
-      console.error('❌ Categories failed:', results[1].reason?.message);
-      categories = [];
-    }
-
-  } catch (err) {
-    console.error('❌ Page loading error:', err);
-    if (err.message === 'API timeout') {
-      error = 'Loading is taking longer than expected. Please refresh the page.';
-    } else {
-      error = 'Failed to load page data. Please try again.';
-    }
-    
-    // Fallback data
-    products = { results: [], count: 0, next: null, previous: null };
-    categories = [];
-  }
+  console.log('🚀 Home page rendering - FAST MODE');
 
   return (
     <main className="min-h-screen">
       
-      {/* Hero Section */}
+      {/* 🚀 HERO SECTION - LOADS INSTANTLY */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
         <HeroImage />
         
@@ -111,44 +51,34 @@ export default async function Home({ searchParams }) {
         </div>
       </section>
 
-      {/* Error Handling */}
-      {error && (
-        <section className="container mx-auto px-4 py-8">
-          <div className="bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-lg p-6 text-center">
-            <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">
-              Unable to Load Products
-            </h3>
-            <p className="text-red-600 dark:text-red-300 mb-4">
-              {error}
-            </p>
-            <button 
-              onClick={() => window.location.reload()} 
-              className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition-colors"
-            >
-              Retry
-            </button>
-          </div>
-        </section>
-      )}
-
-      {/* Products Section */}
+      {/* 🚀 PRODUCTS SECTION - CLIENT-SIDE LOADING */}
       <div id="products">
-        <ProductsSection 
-          initialProducts={products} 
-          categories={categories}
-        />
+        <Suspense 
+          fallback={
+            <div className="container mx-auto px-4 py-16">
+              <div className="text-center mb-8">
+                <div className="animate-pulse space-y-4">
+                  <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-64 mx-auto"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-48 mx-auto"></div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="bg-gray-200 dark:bg-gray-700 rounded-lg h-64 animate-pulse"></div>
+                ))}
+              </div>
+            </div>
+          }
+        >
+          {/* ProductsSection will load its own data client-side */}
+          <ProductsSection 
+            initialProducts={null} // Let it load data client-side
+            categories={[]} // Let it load categories client-side
+          />
+        </Suspense>
       </div>
 
-      {/* Quick Debug Info (remove in production) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="fixed bottom-4 left-4 bg-black text-white p-2 rounded text-xs z-50">
-          Products: {products?.results?.length || 0} | 
-          Categories: {categories?.length || 0} |
-          Error: {error ? 'Yes' : 'No'}
-        </div>
-      )}
-
-      {/* Features Section */}
+      {/* 🚀 FEATURES SECTION - STATIC CONTENT */}
       <section className="py-20 bg-white dark:bg-gray-900">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
@@ -192,7 +122,7 @@ export default async function Home({ searchParams }) {
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* 🚀 CTA SECTION - STATIC CONTENT */}
       <section className="py-20 bg-gradient-to-r from-orange-600 to-orange-700">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">

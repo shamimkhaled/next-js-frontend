@@ -1,142 +1,139 @@
-// components/ProductsSection.js - Fixed API calls
+// components/ProductsSection.js - CLIENT-SIDE DATA LOADING
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ProductCard from './ProductCard';
 import LoadingSpinner from './LoadingSpinner';
-import { getProducts } from '@/lib/api'; // Use the existing API function
+import { getProducts, getCategories } from '@/utils/api';
 
-function ProductsSectionContent({ initialProducts, categories }) {
+function ProductsSectionContent({ initialProducts, categories: initialCategories }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [loading, setLoading] = useState(false);
-  const [products, setProducts] = useState(initialProducts?.results || []);
-  const [totalCount, setTotalCount] = useState(initialProducts?.count || 0);
+  const [loading, setLoading] = useState(true); // Start with loading true
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [error, setError] = useState(null);
   
   // Get current page from URL params
   const currentPage = parseInt(searchParams.get('page')) || 1;
   const categoryParam = searchParams.get('category') || 'all';
   
-  // Calculate total pages (API returns paginated results)
+  // Calculate total pages
   const itemsPerPage = 20;
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
-  // Extract unique categories from initial products and categories prop
-  const uniqueCategories = [
-    ...new Set([
-      ...products.map(p => p.category_name).filter(Boolean),
-      ...(categories || []).map(c => c.name).filter(Boolean)
-    ])
-  ];
+  // 🚀 LOAD DATA CLIENT-SIDE FOR SPEED
+  useEffect(() => {
+    loadInitialData();
+  }, []);
 
   // Update selectedCategory when URL changes
   useEffect(() => {
     setSelectedCategory(categoryParam);
   }, [categoryParam]);
 
-  // 🔧 FIXED: Handle category change with proper API usage
-  const handleCategoryChange = async (category) => {
-    if (category === selectedCategory) return; // Already selected
-    
-    setLoading(true);
-    setSelectedCategory(category);
-    
+  // Reload products when filters change
+  useEffect(() => {
+    if (!loading) { // Only reload if initial load is complete
+      loadProducts();
+    }
+  }, [categoryParam, currentPage]);
+
+  const loadInitialData = async () => {
     try {
-      const params = new URLSearchParams();
-      params.set('page', '1'); // Reset to first page
-      
-      if (category !== 'all') {
-        params.set('category', category);
-      }
-      
-      // Update URL first
-      router.push(`/?${params.toString()}`);
-      
-      // 🔧 FIXED: Use the existing getProducts API function instead of raw fetch
-      const apiParams = { page: 1 };
-      
-      // Try different parameter names that your API might accept
-      if (category !== 'all') {
-        // First try with 'category' parameter
-        apiParams.category = category;
-        
-        // If that doesn't work, you might need one of these instead:
-        // apiParams.category_name = category;
-        // apiParams.category_slug = category.toLowerCase().replace(/\s+/g, '-');
-      }
-      
-      console.log('🔍 Fetching products with params:', apiParams);
-      const data = await getProducts(apiParams);
-      
-      if (data && data.results) {
-        setProducts(data.results);
-        setTotalCount(data.count || 0);
-        console.log(`✅ Loaded ${data.results.length} products for category: ${category}`);
+      setLoading(true);
+      setError(null);
+
+      // Load data in parallel for speed
+      const [productsResponse, categoriesResponse] = await Promise.allSettled([
+        getProducts({ page: currentPage, ...(categoryParam !== 'all' && { category: categoryParam }) }),
+        getCategories()
+      ]);
+
+      // Handle products
+      if (productsResponse.status === 'fulfilled') {
+        const productsData = productsResponse.value;
+        setProducts(productsData?.results || []);
+        setTotalCount(productsData?.count || 0);
       } else {
-        console.warn('⚠️ No data received from API');
+        console.error('Failed to load products:', productsResponse.reason);
         setProducts([]);
         setTotalCount(0);
       }
-      
-    } catch (error) {
-      console.error('❌ Error fetching category products:', error);
-      // Keep current products on error instead of clearing
-      // setProducts([]);
-      // setTotalCount(0);
+
+      // Handle categories
+      if (categoriesResponse.status === 'fulfilled') {
+        setCategories(Array.isArray(categoriesResponse.value) ? categoriesResponse.value : []);
+      } else {
+        console.error('Failed to load categories:', categoriesResponse.reason);
+        setCategories([]);
+      }
+
+    } catch (err) {
+      console.error('Error loading initial data:', err);
+      setError('Failed to load data. Please refresh the page.');
+      setProducts([]);
+      setCategories([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔧 FIXED: Handle page change with proper API usage
-  const handlePageChange = async (page) => {
-    if (page < 1 || page > totalPages || page === currentPage) {
-      return;
-    }
-
-    setLoading(true);
-    
+  const loadProducts = async () => {
     try {
-      const params = new URLSearchParams(searchParams);
-      params.set('page', page.toString());
-      
-      router.push(`/?${params.toString()}`);
-      
-      // 🔧 FIXED: Use the existing getProducts API function
-      const apiParams = { page };
-      
-      if (selectedCategory !== 'all') {
-        apiParams.category = selectedCategory;
+      setLoading(true);
+      const apiParams = { page: currentPage };
+      if (categoryParam !== 'all') {
+        apiParams.category = categoryParam;
       }
-      
-      console.log('🔍 Fetching page with params:', apiParams);
-      const data = await getProducts(apiParams);
-      
-      if (data && data.results) {
-        setProducts(data.results);
-        setTotalCount(data.count || 0);
-        console.log(`✅ Loaded page ${page} with ${data.results.length} products`);
-      }
-      
+
+      const productsData = await getProducts(apiParams);
+      setProducts(productsData?.results || []);
+      setTotalCount(productsData?.count || 0);
     } catch (error) {
-      console.error('❌ Error fetching page:', error);
+      console.error('Error loading products:', error);
+      setProducts([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
   };
 
-  // Update products when initialProducts changes
-  useEffect(() => {
-    if (initialProducts) {
-      setProducts(initialProducts.results || []);
-      setTotalCount(initialProducts.count || 0);
-      setLoading(false);
+  const handleCategoryChange = async (category) => {
+    if (category === selectedCategory) return;
+    
+    setSelectedCategory(category);
+    const params = new URLSearchParams();
+    params.set('page', '1');
+    
+    if (category !== 'all') {
+      params.set('category', category);
     }
-  }, [initialProducts]);
+    
+    router.push(`/?${params.toString()}`);
+  };
 
-  // Generate page numbers array
+  const handlePageChange = (page) => {
+    if (page < 1 || page > totalPages || page === currentPage) return;
+    
+    const params = new URLSearchParams(searchParams);
+    params.set('page', page.toString());
+    router.push(`/?${params.toString()}`);
+  };
+
+  // Extract unique categories
+  const uniqueCategories = [
+    ...new Set([
+      ...products.map(p => p.category_name).filter(Boolean),
+      ...categories.map(c => c.name).filter(Boolean)
+    ])
+  ];
+
+  // Generate page numbers
   const getPageNumbers = () => {
     const delta = 2;
     const range = [];
@@ -164,11 +161,27 @@ function ProductsSectionContent({ initialProducts, categories }) {
     return rangeWithDots;
   };
 
-  // Count products for each category (for display)
-  const getCategoryCount = (category) => {
-    if (category === 'all') return totalCount;
-    return products.filter(p => p.category_name === category).length;
-  };
+  // Show error state
+  if (error) {
+    return (
+      <section className="container mx-auto px-4 py-16">
+        <div className="text-center">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-8 max-w-md mx-auto">
+            <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">
+              Unable to Load Products
+            </h3>
+            <p className="text-red-600 dark:text-red-300 mb-4">{error}</p>
+            <button 
+              onClick={loadInitialData}
+              className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <>
@@ -219,55 +232,29 @@ function ProductsSectionContent({ initialProducts, categories }) {
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-12">
+          <div className="text-center py-12">
             <LoadingSpinner />
-            <p className="ml-4 text-gray-600 dark:text-gray-400">
-              Loading {selectedCategory === 'all' ? 'all products' : `${selectedCategory} products`}...
+            <p className="mt-4 text-gray-600 dark:text-gray-400">
+              Loading delicious products...
             </p>
           </div>
-        ) : (
+        ) : products.length > 0 ? (
           <>
-            {products.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
-                {products.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-16">
-                <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-4xl">🔍</span>
-                </div>
-                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
-                  No products found
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400">
-                  {selectedCategory === 'all' 
-                    ? 'No products available at the moment.'
-                    : `No products found in ${selectedCategory} category.`
-                  }
-                </p>
-                {selectedCategory !== 'all' && (
-                  <button
-                    onClick={() => handleCategoryChange('all')}
-                    className="mt-4 px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-                  >
-                    View All Products
-                  </button>
-                )}
-              </div>
-            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
+              {products.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
 
             {/* Pagination */}
-            {totalPages > 1 && !loading && (
+            {totalPages > 1 && (
               <div className="flex justify-center mt-12">
                 <nav className="flex items-center space-x-2">
-                  {/* Previous Button */}
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1 || loading}
+                    disabled={currentPage === 1}
                     className={`px-3 py-2 rounded-lg font-medium transition-all duration-200 ${
-                      currentPage === 1 || loading
+                      currentPage === 1
                         ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed'
                         : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
                     }`}
@@ -275,7 +262,6 @@ function ProductsSectionContent({ initialProducts, categories }) {
                     Previous
                   </button>
 
-                  {/* Page Numbers */}
                   {getPageNumbers().map((pageNum, index) => (
                     pageNum === '...' ? (
                       <span key={index} className="px-3 py-2 text-gray-400">...</span>
@@ -283,24 +269,22 @@ function ProductsSectionContent({ initialProducts, categories }) {
                       <button
                         key={index}
                         onClick={() => handlePageChange(pageNum)}
-                        disabled={loading}
                         className={`px-3 py-2 rounded-lg font-medium transition-all duration-200 ${
                           currentPage === pageNum
                             ? 'bg-orange-600 text-white shadow-lg'
                             : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
-                        } ${loading ? 'opacity-50' : ''}`}
+                        }`}
                       >
                         {pageNum}
                       </button>
                     )
                   ))}
 
-                  {/* Next Button */}
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages || loading}
+                    disabled={currentPage === totalPages}
                     className={`px-3 py-2 rounded-lg font-medium transition-all duration-200 ${
-                      currentPage === totalPages || loading
+                      currentPage === totalPages
                         ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed'
                         : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
                     }`}
@@ -311,19 +295,41 @@ function ProductsSectionContent({ initialProducts, categories }) {
               </div>
             )}
           </>
+        ) : (
+          <div className="text-center py-16">
+            <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-4xl">🔍</span>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
+              No products found
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400">
+              {selectedCategory === 'all' 
+                ? 'No products available at the moment.'
+                : `No products found in ${selectedCategory} category.`
+              }
+            </p>
+            {selectedCategory !== 'all' && (
+              <button
+                onClick={() => handleCategoryChange('all')}
+                className="mt-4 px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+              >
+                View All Products
+              </button>
+            )}
+          </div>
         )}
       </section>
     </>
   );
 }
 
-// Main component with Suspense wrapper
 export default function ProductsSection({ initialProducts, categories }) {
   return (
     <Suspense fallback={<LoadingSpinner />}>
       <ProductsSectionContent 
         initialProducts={initialProducts} 
-        categories={categories} 
+        categories={categories}
       />
     </Suspense>
   );
