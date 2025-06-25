@@ -1,10 +1,11 @@
-// components/ProductsSection.js - Fixed with proper category switching
+// components/ProductsSection.js - Fixed API calls
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ProductCard from './ProductCard';
 import LoadingSpinner from './LoadingSpinner';
+import { getProducts } from '@/lib/api'; // Use the existing API function
 
 function ProductsSectionContent({ initialProducts, categories }) {
   const router = useRouter();
@@ -35,7 +36,7 @@ function ProductsSectionContent({ initialProducts, categories }) {
     setSelectedCategory(categoryParam);
   }, [categoryParam]);
 
-  // Handle category change - this is the key fix
+  // 🔧 FIXED: Handle category change with proper API usage
   const handleCategoryChange = async (category) => {
     if (category === selectedCategory) return; // Already selected
     
@@ -53,33 +54,43 @@ function ProductsSectionContent({ initialProducts, categories }) {
       // Update URL first
       router.push(`/?${params.toString()}`);
       
-      // Fetch new data from API
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://seashell-app-4gkvz.ondigitalocean.app';
-      const apiUrl = category === 'all' 
-        ? `${API_BASE_URL}/products/?page=1`
-        : `${API_BASE_URL}/products/?category=${category}&page=1`;
-        
-      console.log('🔄 Fetching category products:', apiUrl);
+      // 🔧 FIXED: Use the existing getProducts API function instead of raw fetch
+      const apiParams = { page: 1 };
       
-      const response = await fetch(apiUrl);
-      
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data.results || []);
-        setTotalCount(data.count || 0);
+      // Try different parameter names that your API might accept
+      if (category !== 'all') {
+        // First try with 'category' parameter
+        apiParams.category = category;
         
-        console.log(`✅ Loaded ${data.results?.length || 0} products for category: ${category}`);
-      } else {
-        console.error('❌ Failed to fetch category products:', response.status);
+        // If that doesn't work, you might need one of these instead:
+        // apiParams.category_name = category;
+        // apiParams.category_slug = category.toLowerCase().replace(/\s+/g, '-');
       }
+      
+      console.log('🔍 Fetching products with params:', apiParams);
+      const data = await getProducts(apiParams);
+      
+      if (data && data.results) {
+        setProducts(data.results);
+        setTotalCount(data.count || 0);
+        console.log(`✅ Loaded ${data.results.length} products for category: ${category}`);
+      } else {
+        console.warn('⚠️ No data received from API');
+        setProducts([]);
+        setTotalCount(0);
+      }
+      
     } catch (error) {
       console.error('❌ Error fetching category products:', error);
+      // Keep current products on error instead of clearing
+      // setProducts([]);
+      // setTotalCount(0);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle page change
+  // 🔧 FIXED: Handle page change with proper API usage
   const handlePageChange = async (page) => {
     if (page < 1 || page > totalPages || page === currentPage) {
       return;
@@ -93,19 +104,22 @@ function ProductsSectionContent({ initialProducts, categories }) {
       
       router.push(`/?${params.toString()}`);
       
-      // Fetch new page data
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://seashell-app-4gkvz.ondigitalocean.app';
-      const apiUrl = selectedCategory === 'all' 
-        ? `${API_BASE_URL}/products/?page=${page}`
-        : `${API_BASE_URL}/products/?category=${selectedCategory}&page=${page}`;
+      // 🔧 FIXED: Use the existing getProducts API function
+      const apiParams = { page };
       
-      const response = await fetch(apiUrl);
-      
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data.results || []);
-        setTotalCount(data.count || 0);
+      if (selectedCategory !== 'all') {
+        apiParams.category = selectedCategory;
       }
+      
+      console.log('🔍 Fetching page with params:', apiParams);
+      const data = await getProducts(apiParams);
+      
+      if (data && data.results) {
+        setProducts(data.results);
+        setTotalCount(data.count || 0);
+        console.log(`✅ Loaded page ${page} with ${data.results.length} products`);
+      }
+      
     } catch (error) {
       console.error('❌ Error fetching page:', error);
     } finally {
@@ -153,7 +167,6 @@ function ProductsSectionContent({ initialProducts, categories }) {
   // Count products for each category (for display)
   const getCategoryCount = (category) => {
     if (category === 'all') return totalCount;
-    // For individual categories, we'd need a separate API call or count from current data
     return products.filter(p => p.category_name === category).length;
   };
 
@@ -231,20 +244,22 @@ function ProductsSectionContent({ initialProducts, categories }) {
                 <p className="text-gray-600 dark:text-gray-400">
                   {selectedCategory === 'all' 
                     ? 'No products available at the moment.'
-                    : `No products found in "${selectedCategory}" category.`
+                    : `No products found in ${selectedCategory} category.`
                   }
                 </p>
-                <button
-                  onClick={() => handleCategoryChange('all')}
-                  className="mt-4 px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-                >
-                  View All Products
-                </button>
+                {selectedCategory !== 'all' && (
+                  <button
+                    onClick={() => handleCategoryChange('all')}
+                    className="mt-4 px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                  >
+                    View All Products
+                  </button>
+                )}
               </div>
             )}
 
             {/* Pagination */}
-            {totalPages > 1 && (
+            {totalPages > 1 && !loading && (
               <div className="flex justify-center mt-12">
                 <nav className="flex items-center space-x-2">
                   {/* Previous Button */}
@@ -262,20 +277,22 @@ function ProductsSectionContent({ initialProducts, categories }) {
 
                   {/* Page Numbers */}
                   {getPageNumbers().map((pageNum, index) => (
-                    <button
-                      key={index}
-                      onClick={() => typeof pageNum === 'number' && handlePageChange(pageNum)}
-                      disabled={pageNum === '...' || loading || pageNum === currentPage}
-                      className={`px-3 py-2 rounded-lg font-medium transition-all duration-200 ${
-                        pageNum === currentPage
-                          ? 'bg-orange-600 text-white shadow-lg'
-                          : pageNum === '...'
-                          ? 'bg-transparent text-gray-400 dark:text-gray-600 cursor-default'
-                          : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
-                      } ${loading ? 'opacity-50' : ''}`}
-                    >
-                      {pageNum}
-                    </button>
+                    pageNum === '...' ? (
+                      <span key={index} className="px-3 py-2 text-gray-400">...</span>
+                    ) : (
+                      <button
+                        key={index}
+                        onClick={() => handlePageChange(pageNum)}
+                        disabled={loading}
+                        className={`px-3 py-2 rounded-lg font-medium transition-all duration-200 ${
+                          currentPage === pageNum
+                            ? 'bg-orange-600 text-white shadow-lg'
+                            : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
+                        } ${loading ? 'opacity-50' : ''}`}
+                      >
+                        {pageNum}
+                      </button>
+                    )
                   ))}
 
                   {/* Next Button */}
