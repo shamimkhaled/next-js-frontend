@@ -1,4 +1,4 @@
-// components/Navbar.js - Complete with FULL Mega Menu
+// components/Navbar.js - OPTIMIZED DYNAMIC VERSION
 'use client';
 
 import Link from 'next/link';
@@ -64,40 +64,6 @@ function AutocompleteSearch() {
   const searchRef = useRef(null);
   const router = useRouter();
 
-  // 🔧 FIXED: Better image URL processing
-  const getImageUrl = (imageInput) => {
-    if (!imageInput) return '/placeholder-product.jpg';
-    
-    let imageUrl = imageInput;
-    
-    // Handle object images
-    if (typeof imageInput === 'object') {
-      imageUrl = imageInput.url || imageInput.src || imageInput.image || imageInput.file;
-    }
-    
-    // Convert to string
-    if (typeof imageUrl !== 'string') {
-      return '/placeholder-product.jpg';
-    }
-    
-    imageUrl = imageUrl.trim();
-    if (!imageUrl) return '/placeholder-product.jpg';
-    
-    // If already a complete URL, return as is
-    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-      return imageUrl;
-    }
-    
-    // If starts with /, it's relative to domain
-    if (imageUrl.startsWith('/')) {
-      return imageUrl;
-    }
-    
-    // Build full URL with API base
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://seashell-app-4gkvz.ondigitalocean.app';
-    return `${baseUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
-  };
-
   const searchProducts = async (searchQuery) => {
     if (!searchQuery.trim() || searchQuery.trim().length < 2) {
       setResults([]);
@@ -107,10 +73,8 @@ function AutocompleteSearch() {
 
     setLoading(true);
     try {
-      console.log('🔍 Searching for:', searchQuery);
       const data = await searchProductsAutocomplete(searchQuery.trim());
       
-      // Handle different response formats
       let resultsArray = [];
       if (Array.isArray(data)) {
         resultsArray = data;
@@ -118,28 +82,12 @@ function AutocompleteSearch() {
         resultsArray = data.results;
       }
       
-      // 🔧 FIXED: Better image processing
-      const processedResults = resultsArray.slice(0, 5).map(product => {
-        console.log('🖼️ Processing product image:', product.image || product.primary_image || product.thumbnail);
-        
-        const processedImage = getImageUrl(
-          product.image || 
-          product.primary_image || 
-          product.thumbnail ||
-          product.featured_image
-        );
-        
-        console.log('🖼️ Final image URL:', processedImage);
-        
-        return {
-          id: product.id,
-          slug: product.slug,
-          name: product.name || product.title || `Product ${product.id}`,
-          image: processedImage
-        };
-      });
+      const processedResults = resultsArray.slice(0, 8).map(product => ({
+        id: product.id,
+        slug: product.slug,
+        name: product.name || product.title || `Product ${product.id}`
+      }));
       
-      console.log('✅ Processed results:', processedResults);
       setResults(processedResults);
       setIsOpen(processedResults.length > 0);
       
@@ -174,6 +122,7 @@ function AutocompleteSearch() {
     if (query.trim()) {
       router.push(`/search?q=${encodeURIComponent(query.trim())}`);
       setIsOpen(false);
+      setQuery('');
     }
   };
 
@@ -202,79 +151,51 @@ function AutocompleteSearch() {
       </form>
 
       {isOpen && (query.trim().length > 1) && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-96 overflow-y-auto z-50">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-80 overflow-y-auto z-50">
           {loading ? (
             <div className="p-4 text-center text-gray-500">
               <div className="animate-spin inline-block w-4 h-4 border-2 border-gray-300 border-t-orange-500 rounded-full"></div>
               <span className="ml-2">Searching...</span>
             </div>
           ) : results.length > 0 ? (
-            <div className="py-2">
-              {results.map((product) => (
+            <div className="py-1">
+              {results.map((product, index) => (
                 <button
                   key={product.id}
                   onClick={() => handleProductClick(product)}
-                  className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left"
+                  className={`w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
+                    index !== results.length - 1 ? 'border-b border-gray-100 dark:border-gray-700' : ''
+                  }`}
                 >
-                  {/* 🔧 FIXED: Better image handling with multiple fallbacks */}
-                  <div className="w-12 h-12 flex-shrink-0 relative">
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className="w-12 h-12 object-cover rounded-lg"
-                      onError={(e) => { 
-                        console.log('🖼️ Image failed to load:', product.image);
-                        e.target.src = '/placeholder-product.jpg'; 
-                      }}
-                      onLoad={() => {
-                        console.log('🖼️ Image loaded successfully:', product.image);
-                      }}
-                    />
-                    
-                    {/* Fallback icon if image fails */}
-                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg opacity-0 hover:opacity-100 transition-opacity">
-                      <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                  </div>
-                  
-                  {/* Product Name */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {product.name}
-                    </p>
-                    
-                    {/* Debug info in development */}
-                    {process.env.NODE_ENV === 'development' && (
-                      <p className="text-xs text-gray-400 truncate">
-                        Image: {product.image}
-                      </p>
-                    )}
-                  </div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    {product.name}
+                  </p>
                 </button>
               ))}
               
-              {/* View All Results Button */}
-              <button
-                onClick={() => {
-                  router.push(`/search?q=${encodeURIComponent(query.trim())}`);
-                  setIsOpen(false);
-                }}
-                className="w-full flex items-center justify-center px-4 py-3 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors border-t border-gray-200 dark:border-gray-700"
-              >
-                <span className="text-sm font-medium">View all results for "{query.trim()}"</span>
-              </button>
+              <div className="border-t border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={() => {
+                    router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+                    setIsOpen(false);
+                    setQuery('');
+                  }}
+                  className="w-full px-4 py-3 text-center text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
+                >
+                  <span className="text-sm font-medium">View all results for "{query.trim()}"</span>
+                </button>
+              </div>
             </div>
           ) : (
             <div className="p-4 text-center text-gray-500">
-              <p>No products found for "{query.trim()}"</p>
+              <p className="text-sm">No products found for "{query.trim()}"</p>
               <button
                 onClick={() => {
                   router.push(`/search?q=${encodeURIComponent(query.trim())}`);
                   setIsOpen(false);
+                  setQuery('');
                 }}
-                className="text-orange-600 hover:text-orange-700 text-sm mt-1"
+                className="text-orange-600 hover:text-orange-700 text-sm mt-2"
               >
                 Search anyway
               </button>
@@ -285,6 +206,7 @@ function AutocompleteSearch() {
     </div>
   );
 }
+
 // Search Modal Component
 function SearchModal({ isOpen, onClose }) {
   const [query, setQuery] = useState('');
@@ -344,17 +266,18 @@ function SearchModal({ isOpen, onClose }) {
   );
 }
 
-// Main Navbar Component
+// 🚀 OPTIMIZED DYNAMIC NAVBAR
 export default function Navbar() {
   const { settings } = useSettings();
   const { user, isAuthenticated, logout } = useAuth();
   const [activeMenu, setActiveMenu] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
   
-  // 🔥 FULL MEGA MENU STATE
+  // 🚀 OPTIMIZATION: Non-blocking state
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
+  
   const [expandedMobileCategories, setExpandedMobileCategories] = useState({});
   const [expandedMobileSubcategories, setExpandedMobileSubcategories] = useState({});
   
@@ -368,9 +291,96 @@ export default function Navbar() {
     setMounted(true);
   }, []);
 
+  // 🚀 OPTIMIZATION: Load categories in background AFTER mount
   useEffect(() => {
-    loadCategories();
-  }, []);
+    // Only load categories after component is mounted (not blocking initial render)
+    if (mounted) {
+      loadCategoriesInBackground();
+    }
+  }, [mounted]);
+
+  // 🚀 OPTIMIZATION: Background loading with timeout and cache
+  const loadCategoriesInBackground = async () => {
+    try {
+      // Add small delay to not block initial page render
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      console.log('🔄 Loading categories in background...');
+      
+      // Try to get from cache first
+      const cachedCategories = getCachedCategories();
+      if (cachedCategories) {
+        setCategories(cachedCategories);
+        setCategoriesLoaded(true);
+        console.log('✅ Loaded categories from cache');
+        return;
+      }
+
+      // Load with timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Categories loading timeout')), 3000)
+      );
+
+      const categoriesPromise = getCategories();
+      
+      const data = await Promise.race([categoriesPromise, timeoutPromise]);
+      
+      const processedCategories = Array.isArray(data) ? data : [];
+      setCategories(processedCategories);
+      setCategoriesLoaded(true);
+      
+      // Cache the results
+      setCachedCategories(processedCategories);
+      
+      console.log('✅ Categories loaded in background:', processedCategories.length);
+      
+    } catch (error) {
+      console.warn('⚠️ Categories failed to load (non-blocking):', error.message);
+      setCategoriesLoaded(true); // Mark as loaded even if failed
+      
+      // Use fallback categories
+      const fallbackCategories = getFallbackCategories();
+      setCategories(fallbackCategories);
+    }
+  };
+
+  // 🚀 OPTIMIZATION: Client-side caching
+  const getCachedCategories = () => {
+    try {
+      const cached = localStorage.getItem('navbar_categories');
+      const timestamp = localStorage.getItem('navbar_categories_timestamp');
+      
+      if (cached && timestamp) {
+        const age = Date.now() - parseInt(timestamp);
+        // Cache for 5 minutes
+        if (age < 5 * 60 * 1000) {
+          return JSON.parse(cached);
+        }
+      }
+    } catch (error) {
+      console.warn('Cache read error:', error);
+    }
+    return null;
+  };
+
+  const setCachedCategories = (categories) => {
+    try {
+      localStorage.setItem('navbar_categories', JSON.stringify(categories));
+      localStorage.setItem('navbar_categories_timestamp', Date.now().toString());
+    } catch (error) {
+      console.warn('Cache write error:', error);
+    }
+  };
+
+  // 🚀 OPTIMIZATION: Fallback categories for instant display
+  const getFallbackCategories = () => [
+    { id: 1, name: 'Pizza', slug: 'pizza', children: [] },
+    { id: 2, name: 'Burgers', slug: 'burgers', children: [] },
+    { id: 3, name: 'Sushi', slug: 'sushi', children: [] },
+    { id: 4, name: 'Pasta', slug: 'pasta', children: [] },
+    { id: 5, name: 'Salads', slug: 'salads', children: [] },
+    { id: 6, name: 'Desserts', slug: 'desserts', children: [] }
+  ];
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -383,20 +393,7 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const loadCategories = async () => {
-    try {
-      setLoading(true);
-      const data = await getCategories();
-      setCategories(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Failed to load categories:', error);
-      setCategories([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 🔥 MEGA MENU FUNCTIONS
+  // Mega menu functions
   const handleCategoryHover = (categoryId) => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -408,25 +405,6 @@ export default function Navbar() {
     timeoutRef.current = setTimeout(() => {
       setActiveMenu(null);
     }, 200);
-  };
-
-  const getMegaMenuPosition = (buttonElement) => {
-    if (!buttonElement) return { transform: 'translateX(-50%)', left: '50%' };
-
-    const buttonRect = buttonElement.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const megaMenuWidth = 1000;
-    
-    const rightOverflow = (buttonRect.left + buttonRect.width / 2) + (megaMenuWidth / 2) - viewportWidth;
-    const leftOverflow = (buttonRect.left + buttonRect.width / 2) - (megaMenuWidth / 2);
-
-    if (rightOverflow > 0) {
-      return { right: '20px', transform: 'none' };
-    } else if (leftOverflow < 0) {
-      return { left: '20px', transform: 'none' };
-    } else {
-      return { left: '50%', transform: 'translateX(-50%)' };
-    }
   };
 
   const getCategoryIcon = (name) => {
@@ -448,7 +426,6 @@ export default function Navbar() {
   const getCategoryUrl = (category) => `/category/${category.slug}`;
   const getFilterUrl = (category) => `/category/${category.slug}/filters`;
 
-  // 🔥 FULL MEGA MENU RENDER FUNCTION
   const renderMegaMenu = (category) => {
     if (!category.children || category.children.length === 0) {
       return (
@@ -478,7 +455,7 @@ export default function Navbar() {
     return (
       <div className="p-6">
         <div className="mega-menu-grid">
-          {category.children.map((subCategory) => (
+          {category.children.slice(0, 9).map((subCategory) => (
             <div key={subCategory.id} className="group">
               <div className="flex items-center gap-3 mb-3">
                 <span className="text-xl">{getCategoryIcon(subCategory.name)}</span>
@@ -525,7 +502,6 @@ export default function Navbar() {
     );
   };
 
-  // 🔥 MOBILE MEGA MENU FUNCTIONS
   const toggleMobileCategory = (categoryId) => {
     setExpandedMobileCategories(prev => ({
       ...prev,
@@ -643,7 +619,7 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* 🔥 BOTTOM LINE: MEGA MENU CATEGORIES */}
+        {/* 🚀 DYNAMIC MEGA MENU - OPTIMIZED */}
         <div className="hidden lg:block bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-start h-12 space-x-8" ref={menuRef}>
@@ -655,39 +631,48 @@ export default function Navbar() {
                 Home
               </Link>
               
-              {/* 🔥 CATEGORIES WITH MEGA MENU */}
-              {categories.slice(0, 6).map((category) => (
-                <div
-                  key={category.id}
-                  className="relative"
-                  onMouseEnter={() => handleCategoryHover(category.id)}
-                  onMouseLeave={handleMenuLeave}
-                >
-                  <button
-                    className="flex items-center space-x-1 py-3 text-gray-700 dark:text-gray-300 hover:text-orange-500 dark:hover:text-orange-400 font-medium transition-colors"
+              {/* 🚀 DYNAMIC CATEGORIES WITH LOADING STATE */}
+              {!categoriesLoaded ? (
+                // Show loading placeholders while categories load
+                [...Array(4)].map((_, i) => (
+                  <div key={i} className="flex items-center space-x-1 py-3">
+                    <div className="w-5 h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                    <div className="w-16 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </div>
+                ))
+              ) : (
+                // Show actual categories when loaded
+                categories.slice(0, 6).map((category) => (
+                  <div
+                    key={category.id}
+                    className="relative"
+                    onMouseEnter={() => handleCategoryHover(category.id)}
+                    onMouseLeave={handleMenuLeave}
                   >
-                    <span>{getCategoryIcon(category.name)}</span>
-                    <span>{category.name}</span>
-                    {category.children && category.children.length > 0 && (
-                      <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    )}
-                  </button>
-
-                  {/* 🔥 MEGA MENU DROPDOWN */}
-                  {activeMenu === category.id && (
-                    <div
-                      className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 w-screen max-w-4xl bg-white dark:bg-gray-800 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden mega-menu-dropdown z-50"
-                      onMouseEnter={() => setActiveMenu(category.id)}
-                      onMouseLeave={handleMenuLeave}
-                      style={getMegaMenuPosition()}
+                    <button
+                      className="flex items-center space-x-1 py-3 text-gray-700 dark:text-gray-300 hover:text-orange-500 dark:hover:text-orange-400 font-medium transition-colors"
                     >
-                      {renderMegaMenu(category)}
-                    </div>
-                  )}
-                </div>
-              ))}
+                      <span>{getCategoryIcon(category.name)}</span>
+                      <span>{category.name}</span>
+                      {category.children && category.children.length > 0 && (
+                        <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      )}
+                    </button>
+
+                    {activeMenu === category.id && (
+                      <div
+                        className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 w-screen max-w-4xl bg-white dark:bg-gray-800 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden mega-menu-dropdown z-50"
+                        onMouseEnter={() => setActiveMenu(category.id)}
+                        onMouseLeave={handleMenuLeave}
+                      >
+                        {renderMegaMenu(category)}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
 
               <Link href="/about" className="text-gray-700 dark:text-gray-300 hover:text-orange-500 transition-colors font-medium">
                 About
@@ -704,7 +689,7 @@ export default function Navbar() {
         onClose={() => setSearchModalOpen(false)} 
       />
 
-      {/* 🔥 FULL MOBILE MEGA MENU */}
+      {/* Mobile Menu with Dynamic Categories */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div 
@@ -819,79 +804,91 @@ export default function Navbar() {
                 )}
               </div>
 
-              {/* 🔥 MOBILE CATEGORIES WITH FULL MEGA MENU */}
+              {/* 🚀 DYNAMIC MOBILE CATEGORIES */}
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Categories</h3>
-                <div className="space-y-2">
-                  {categories.map((category) => (
-                    <div key={category.id}>
-                      <button
-                        onClick={() => toggleMobileCategory(category.id)}
-                        className="flex items-center justify-between w-full px-4 py-3 text-gray-700 dark:text-gray-300 hover:text-orange-500 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-colors"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <span className="text-xl">{getCategoryIcon(category.name)}</span>
-                          <span className="font-medium">{category.name}</span>
-                        </div>
-                        {category.children && category.children.length > 0 && (
-                          <svg 
-                            className={`w-4 h-4 transition-transform ${expandedMobileCategories[category.id] ? 'rotate-180' : ''}`} 
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        )}
-                      </button>
+                
+                {!categoriesLoaded ? (
+                  // Loading state for mobile categories
+                  <div className="space-y-2">
+                    {[...Array(6)].map((_, i) => (
+                      <div key={i} className="flex items-center space-x-3 px-4 py-3">
+                        <div className="w-6 h-6 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                        <div className="w-24 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  // Actual categories when loaded
+                  <div className="space-y-2">
+                    {categories.map((category) => (
+                      <div key={category.id}>
+                        <button
+                          onClick={() => toggleMobileCategory(category.id)}
+                          className="flex items-center justify-between w-full px-4 py-3 text-gray-700 dark:text-gray-300 hover:text-orange-500 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-colors"
+                        >
+                          <div className="flex items-center space-x-3">
+                            <span className="text-xl">{getCategoryIcon(category.name)}</span>
+                            <span className="font-medium">{category.name}</span>
+                          </div>
+                          {category.children && category.children.length > 0 && (
+                            <svg 
+                              className={`w-4 h-4 transition-transform ${expandedMobileCategories[category.id] ? 'rotate-180' : ''}`} 
+                              fill="none" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          )}
+                        </button>
 
-                      {/* 🔥 MOBILE SUBCATEGORIES */}
-                      {expandedMobileCategories[category.id] && category.children && (
-                        <div className="ml-6 mt-2 space-y-2">
-                          {category.children.map((subCategory) => (
-                            <div key={subCategory.id}>
-                              <button
-                                onClick={() => toggleMobileSubcategory(subCategory.id)}
-                                className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                              >
-                                <div className="flex items-center space-x-2">
-                                  <span>{getCategoryIcon(subCategory.name)}</span>
-                                  <span>{subCategory.name}</span>
-                                </div>
-                                {subCategory.children && subCategory.children.length > 0 && (
-                                  <svg 
-                                    className={`w-3 h-3 transition-transform ${expandedMobileSubcategories[subCategory.id] ? 'rotate-180' : ''}`} 
-                                    fill="none" 
-                                    stroke="currentColor" 
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                  </svg>
-                                )}
-                              </button>
-
-                              {/* 🔥 MOBILE SUB-SUBCATEGORIES */}
-                              {expandedMobileSubcategories[subCategory.id] && subCategory.children && (
-                                <div className="ml-4 mt-1 space-y-1">
-                                  {subCategory.children.map((item) => (
-                                    <Link
-                                      key={item.id}
-                                      href={getCategoryUrl(item)}
-                                      className="block px-3 py-2 text-xs text-gray-500 dark:text-gray-500 hover:text-orange-500 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                                      onClick={() => setMobileMenuOpen(false)}
+                        {expandedMobileCategories[category.id] && category.children && (
+                          <div className="ml-6 mt-2 space-y-2">
+                            {category.children.map((subCategory) => (
+                              <div key={subCategory.id}>
+                                <button
+                                  onClick={() => toggleMobileSubcategory(subCategory.id)}
+                                  className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                                >
+                                  <div className="flex items-center space-x-2">
+                                    <span>{getCategoryIcon(subCategory.name)}</span>
+                                    <span>{subCategory.name}</span>
+                                  </div>
+                                  {subCategory.children && subCategory.children.length > 0 && (
+                                    <svg 
+                                      className={`w-3 h-3 transition-transform ${expandedMobileSubcategories[subCategory.id] ? 'rotate-180' : ''}`} 
+                                      fill="none" 
+                                      stroke="currentColor" 
+                                      viewBox="0 0 24 24"
                                     >
-                                      {item.name}
-                                    </Link>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                  )}
+                                </button>
+
+                                {expandedMobileSubcategories[subCategory.id] && subCategory.children && (
+                                  <div className="ml-4 mt-1 space-y-1">
+                                    {subCategory.children.map((item) => (
+                                      <Link
+                                        key={item.id}
+                                        href={getCategoryUrl(item)}
+                                        className="block px-3 py-2 text-xs text-gray-500 dark:text-gray-500 hover:text-orange-500 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                                        onClick={() => setMobileMenuOpen(false)}
+                                      >
+                                        {item.name}
+                                      </Link>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Other Navigation */}
@@ -900,7 +897,7 @@ export default function Navbar() {
                 <div className="space-y-2">
                   {[
                     { href: '/', label: 'Home', icon: '🏠' },
-                    { href: '/menu', label: 'Menu', icon: '📋' },
+                    { href: '/products', label: 'All Products', icon: '🍽️' },
                     { href: '/offers', label: 'Offers', icon: '🎉' },
                     { href: '/about', label: 'About', icon: 'ℹ️' },
                     { href: '/contact', label: 'Contact', icon: '📞' }
