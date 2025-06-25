@@ -1,5 +1,4 @@
-
-// components/Navbar.js - Complete file with hydration fix
+// components/Navbar.js - Complete with FULL Mega Menu
 'use client';
 
 import Link from 'next/link';
@@ -65,19 +64,89 @@ function AutocompleteSearch() {
   const searchRef = useRef(null);
   const router = useRouter();
 
+  // 🔧 FIXED: Better image URL processing
+  const getImageUrl = (imageInput) => {
+    if (!imageInput) return '/placeholder-product.jpg';
+    
+    let imageUrl = imageInput;
+    
+    // Handle object images
+    if (typeof imageInput === 'object') {
+      imageUrl = imageInput.url || imageInput.src || imageInput.image || imageInput.file;
+    }
+    
+    // Convert to string
+    if (typeof imageUrl !== 'string') {
+      return '/placeholder-product.jpg';
+    }
+    
+    imageUrl = imageUrl.trim();
+    if (!imageUrl) return '/placeholder-product.jpg';
+    
+    // If already a complete URL, return as is
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return imageUrl;
+    }
+    
+    // If starts with /, it's relative to domain
+    if (imageUrl.startsWith('/')) {
+      return imageUrl;
+    }
+    
+    // Build full URL with API base
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://seashell-app-4gkvz.ondigitalocean.app';
+    return `${baseUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
+  };
+
   const searchProducts = async (searchQuery) => {
-    if (!searchQuery.trim()) {
+    if (!searchQuery.trim() || searchQuery.trim().length < 2) {
       setResults([]);
+      setIsOpen(false);
       return;
     }
 
     setLoading(true);
     try {
-      const data = await searchProductsAutocomplete(searchQuery);
-      setResults(data?.results || []);
+      console.log('🔍 Searching for:', searchQuery);
+      const data = await searchProductsAutocomplete(searchQuery.trim());
+      
+      // Handle different response formats
+      let resultsArray = [];
+      if (Array.isArray(data)) {
+        resultsArray = data;
+      } else if (data && Array.isArray(data.results)) {
+        resultsArray = data.results;
+      }
+      
+      // 🔧 FIXED: Better image processing
+      const processedResults = resultsArray.slice(0, 5).map(product => {
+        console.log('🖼️ Processing product image:', product.image || product.primary_image || product.thumbnail);
+        
+        const processedImage = getImageUrl(
+          product.image || 
+          product.primary_image || 
+          product.thumbnail ||
+          product.featured_image
+        );
+        
+        console.log('🖼️ Final image URL:', processedImage);
+        
+        return {
+          id: product.id,
+          slug: product.slug,
+          name: product.name || product.title || `Product ${product.id}`,
+          image: processedImage
+        };
+      });
+      
+      console.log('✅ Processed results:', processedResults);
+      setResults(processedResults);
+      setIsOpen(processedResults.length > 0);
+      
     } catch (error) {
-      console.error('Search error:', error);
+      console.error('🔍 Search error:', error);
       setResults([]);
+      setIsOpen(false);
     } finally {
       setLoading(false);
     }
@@ -87,7 +156,6 @@ function AutocompleteSearch() {
     const timeoutId = setTimeout(() => {
       searchProducts(query);
     }, 300);
-
     return () => clearTimeout(timeoutId);
   }, [query]);
 
@@ -97,7 +165,6 @@ function AutocompleteSearch() {
         setIsOpen(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -110,6 +177,12 @@ function AutocompleteSearch() {
     }
   };
 
+  const handleProductClick = (product) => {
+    router.push(`/products/${product.slug || product.id}`);
+    setIsOpen(false);
+    setQuery('');
+  };
+
   return (
     <div className="relative w-full max-w-lg" ref={searchRef}>
       <form onSubmit={handleSubmit} className="relative">
@@ -117,11 +190,10 @@ function AutocompleteSearch() {
           type="text"
           placeholder="Search for food..."
           value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setIsOpen(true);
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => {
+            if (results.length > 0) setIsOpen(true);
           }}
-          onFocus={() => setIsOpen(true)}
           className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
         />
         <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -129,7 +201,7 @@ function AutocompleteSearch() {
         </svg>
       </form>
 
-      {isOpen && (query.trim() || results.length > 0) && (
+      {isOpen && (query.trim().length > 1) && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-96 overflow-y-auto z-50">
           {loading ? (
             <div className="p-4 text-center text-gray-500">
@@ -138,57 +210,81 @@ function AutocompleteSearch() {
             </div>
           ) : results.length > 0 ? (
             <div className="py-2">
-              {results.slice(0, 5).map((product) => (
-                <Link
+              {results.map((product) => (
+                <button
                   key={product.id}
-                  href={`/products/${product.slug}`}
-                  className="flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                  onClick={() => setIsOpen(false)}
+                  onClick={() => handleProductClick(product)}
+                  className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left"
                 >
-                  <img
-                    src={product.image || '/placeholder-product.jpg'}
-                    alt={product.name}
-                    className="w-10 h-10 object-cover rounded-lg"
-                    onError={(e) => { e.target.src = '/placeholder-product.jpg'; }}
-                  />
+                  {/* 🔧 FIXED: Better image handling with multiple fallbacks */}
+                  <div className="w-12 h-12 flex-shrink-0 relative">
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="w-12 h-12 object-cover rounded-lg"
+                      onError={(e) => { 
+                        console.log('🖼️ Image failed to load:', product.image);
+                        e.target.src = '/placeholder-product.jpg'; 
+                      }}
+                      onLoad={() => {
+                        console.log('🖼️ Image loaded successfully:', product.image);
+                      }}
+                    />
+                    
+                    {/* Fallback icon if image fails */}
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg opacity-0 hover:opacity-100 transition-opacity">
+                      <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                  </div>
+                  
+                  {/* Product Name */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                       {product.name}
                     </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      ${product.price}
-                    </p>
+                    
+                    {/* Debug info in development */}
+                    {process.env.NODE_ENV === 'development' && (
+                      <p className="text-xs text-gray-400 truncate">
+                        Image: {product.image}
+                      </p>
+                    )}
                   </div>
-                </Link>
+                </button>
               ))}
-              {query.trim() && (
-                <Link
-                  href={`/search?q=${encodeURIComponent(query.trim())}`}
-                  className="flex items-center justify-center px-4 py-3 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors border-t border-gray-200 dark:border-gray-700"
-                  onClick={() => setIsOpen(false)}
-                >
-                  <span className="text-sm font-medium">View all results for "{query.trim()}"</span>
-                </Link>
-              )}
+              
+              {/* View All Results Button */}
+              <button
+                onClick={() => {
+                  router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+                  setIsOpen(false);
+                }}
+                className="w-full flex items-center justify-center px-4 py-3 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors border-t border-gray-200 dark:border-gray-700"
+              >
+                <span className="text-sm font-medium">View all results for "{query.trim()}"</span>
+              </button>
             </div>
-          ) : query.trim() ? (
+          ) : (
             <div className="p-4 text-center text-gray-500">
               <p>No products found for "{query.trim()}"</p>
-              <Link
-                href={`/search?q=${encodeURIComponent(query.trim())}`}
-                className="text-orange-600 hover:text-orange-700 text-sm mt-1 inline-block"
-                onClick={() => setIsOpen(false)}
+              <button
+                onClick={() => {
+                  router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+                  setIsOpen(false);
+                }}
+                className="text-orange-600 hover:text-orange-700 text-sm mt-1"
               >
                 Search anyway
-              </Link>
+              </button>
             </div>
-          ) : null}
+          )}
         </div>
       )}
     </div>
   );
 }
-
 // Search Modal Component
 function SearchModal({ isOpen, onClose }) {
   const [query, setQuery] = useState('');
@@ -257,12 +353,15 @@ export default function Navbar() {
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // 🔥 FULL MEGA MENU STATE
   const [expandedMobileCategories, setExpandedMobileCategories] = useState({});
   const [expandedMobileSubcategories, setExpandedMobileSubcategories] = useState({});
+  
   const menuRef = useRef(null);
   const timeoutRef = useRef(null);
 
-  // 🆕 HYDRATION FIX
+  // Hydration fix
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -297,6 +396,7 @@ export default function Navbar() {
     }
   };
 
+  // 🔥 MEGA MENU FUNCTIONS
   const handleCategoryHover = (categoryId) => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -348,6 +448,7 @@ export default function Navbar() {
   const getCategoryUrl = (category) => `/category/${category.slug}`;
   const getFilterUrl = (category) => `/category/${category.slug}/filters`;
 
+  // 🔥 FULL MEGA MENU RENDER FUNCTION
   const renderMegaMenu = (category) => {
     if (!category.children || category.children.length === 0) {
       return (
@@ -424,6 +525,7 @@ export default function Navbar() {
     );
   };
 
+  // 🔥 MOBILE MEGA MENU FUNCTIONS
   const toggleMobileCategory = (categoryId) => {
     setExpandedMobileCategories(prev => ({
       ...prev,
@@ -487,7 +589,7 @@ export default function Navbar() {
 
             {/* Right - Auth & Mobile Menu */}
             <div className="flex items-center space-x-4">
-              {/* Authentication Section - 🆕 HYDRATION FIX */}
+              {/* Authentication Section - HYDRATION FIX */}
               {mounted ? (
                 isAuthenticated ? (
                   <UserMenu user={user} logout={logout} />
@@ -541,7 +643,7 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Bottom Line: Categories Menu */}
+        {/* 🔥 BOTTOM LINE: MEGA MENU CATEGORIES */}
         <div className="hidden lg:block bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-start h-12 space-x-8" ref={menuRef}>
@@ -553,6 +655,7 @@ export default function Navbar() {
                 Home
               </Link>
               
+              {/* 🔥 CATEGORIES WITH MEGA MENU */}
               {categories.slice(0, 6).map((category) => (
                 <div
                   key={category.id}
@@ -572,6 +675,7 @@ export default function Navbar() {
                     )}
                   </button>
 
+                  {/* 🔥 MEGA MENU DROPDOWN */}
                   {activeMenu === category.id && (
                     <div
                       className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 w-screen max-w-4xl bg-white dark:bg-gray-800 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden mega-menu-dropdown z-50"
@@ -600,7 +704,7 @@ export default function Navbar() {
         onClose={() => setSearchModalOpen(false)} 
       />
 
-      {/* Mobile Menu */}
+      {/* 🔥 FULL MOBILE MEGA MENU */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div 
@@ -654,7 +758,7 @@ export default function Navbar() {
             {/* Content */}
             <div className="p-6 space-y-6">
               
-              {/* Account Section - 🆕 HYDRATION FIX */}
+              {/* Account Section - HYDRATION FIX */}
               <div>
                 {mounted ? (
                   isAuthenticated ? (
@@ -715,7 +819,7 @@ export default function Navbar() {
                 )}
               </div>
 
-              {/* Categories */}
+              {/* 🔥 MOBILE CATEGORIES WITH FULL MEGA MENU */}
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Categories</h3>
                 <div className="space-y-2">
@@ -741,6 +845,7 @@ export default function Navbar() {
                         )}
                       </button>
 
+                      {/* 🔥 MOBILE SUBCATEGORIES */}
                       {expandedMobileCategories[category.id] && category.children && (
                         <div className="ml-6 mt-2 space-y-2">
                           {category.children.map((subCategory) => (
@@ -765,6 +870,7 @@ export default function Navbar() {
                                 )}
                               </button>
 
+                              {/* 🔥 MOBILE SUB-SUBCATEGORIES */}
                               {expandedMobileSubcategories[subCategory.id] && subCategory.children && (
                                 <div className="ml-4 mt-1 space-y-1">
                                   {subCategory.children.map((item) => (

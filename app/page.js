@@ -1,155 +1,95 @@
-// app/page.js - Fixed version with proper pagination support
+// app/page.js - FIXED with correct API imports
 import { Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { getProducts, getCategories } from '@/lib/api';
 import ProductsSection from '@/components/ProductsSection';
 import HeroImage from '@/components/HeroImage';
+// 🔧 FIX: Import from utils/api.js instead of lib/api.js
+import { getProducts, getCategories } from '@/utils/api';
 
 // ============================================================================
-// SAFE IMAGE PROCESSING FUNCTIONS (keeping your existing functions)
+// FAST LOADING CONFIGURATION
 // ============================================================================
 
-const getImageUrl = (imageUrl) => {
-  console.log('🖼️ Processing image URL:', imageUrl, 'Type:', typeof imageUrl);
-  
-  if (!imageUrl) {
-    console.log('🖼️ No image URL provided, using placeholder');
-    return '/placeholder-product.jpg';
-  }
-  
-  let urlString;
-  if (typeof imageUrl === 'string') {
-    urlString = imageUrl;
-  } else if (typeof imageUrl === 'object') {
-    if (imageUrl.url) {
-      urlString = imageUrl.url;
-      console.log('🖼️ Found URL in object:', urlString);
-    } else if (imageUrl.src) {
-      urlString = imageUrl.src;
-      console.log('🖼️ Found src in object:', urlString);
-    } else if (imageUrl.image) {
-      urlString = imageUrl.image;
-      console.log('🖼️ Found image in object:', urlString);
-    } else {
-      const firstValue = Object.values(imageUrl)[0];
-      if (typeof firstValue === 'string') {
-        urlString = firstValue;
-        console.log('🖼️ Using first object value:', urlString);
-      } else {
-        console.log('🖼️ Object has no usable URL, using placeholder');
-        return '/placeholder-product.jpg';
-      }
-    }
-  } else {
-    urlString = String(imageUrl);
-    console.log('🖼️ Converted to string:', urlString);
-  }
-  
-  if (!urlString || typeof urlString !== 'string') {
-    console.log('🖼️ Invalid URL string, using placeholder');
-    return '/placeholder-product.jpg';
-  }
-  
-  urlString = urlString.trim();
-  
-  if (!urlString) {
-    console.log('🖼️ Empty URL after trimming, using placeholder');
-    return '/placeholder-product.jpg';
-  }
-  
-  if (urlString.startsWith('http://') || urlString.startsWith('https://')) {
-    console.log('🖼️ Using complete URL:', urlString);
-    return urlString;
-  }
-  
-  if (urlString.startsWith('/')) {
-    console.log('🖼️ Using relative URL:', urlString);
-    return urlString;
-  }
-  
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://seashell-app-4gkvz.ondigitalocean.app';
-  const fullUrl = `${baseUrl}${urlString.startsWith('/') ? '' : '/'}${urlString}`;
-  console.log('🖼️ Constructed full URL:', fullUrl);
-  return fullUrl;
-};
+export const revalidate = 60; // Revalidate every 60 seconds
 
-// Force dynamic rendering to handle search params
-export const dynamic = 'force-dynamic';
-
-export default async function HomePage({ searchParams }) {
-  // Await searchParams as required in Next.js 15
-  const params = await searchParams;
+export default async function Home({ searchParams }) {
+  // Get URL parameters
+  const page = parseInt(searchParams?.page) || 1;
+  const category = searchParams?.category || '';
   
-  // Extract pagination and filter parameters
-  const currentPage = parseInt(params?.page) || 1;
-  const categoryFilter = params?.category || '';
-  
-  console.log('🏠 HomePage params:', { currentPage, categoryFilter });
+  console.log('🏠 Home page loading - Page:', page, 'Category:', category);
 
+  // Initialize data
   let products = null;
   let categories = [];
   let error = null;
 
   try {
-    // Build API query parameters
-    const apiParams = {
-      page: currentPage,
-      ...(categoryFilter && { category: categoryFilter })
-    };
+    // Build API parameters
+    const apiParams = { page };
+    if (category && category !== 'all') {
+      apiParams.category = category;
+    }
 
-    console.log('🔍 Fetching products with params:', apiParams);
+    console.log('📡 Fetching with params:', apiParams);
     
-    // Fetch products and categories in parallel
-    const [productsData, categoriesData] = await Promise.all([
+    // 🔧 FIX: Add timeout to prevent hanging
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('API timeout')), 5000)
+    );
+
+    // Fetch data with timeout protection
+    const dataPromise = Promise.allSettled([
       getProducts(apiParams),
-      getCategories().catch(err => {
-        console.error('❌ Categories fetch failed:', err);
-        return [];
-      })
+      getCategories()
     ]);
 
-    products = productsData;
-    categories = categoriesData;
+    const results = await Promise.race([dataPromise, timeoutPromise]);
 
-    console.log('✅ Products fetched:', {
-      count: products?.count,
-      resultsLength: products?.results?.length,
-      hasNext: !!products?.next,
-      hasPrevious: !!products?.previous
-    });
+    // Handle products response
+    if (results[0].status === 'fulfilled') {
+      products = results[0].value;
+      console.log('✅ Products loaded:', products?.results?.length || 0, 'items');
+    } else {
+      console.error('❌ Products failed:', results[0].reason?.message);
+      products = { results: [], count: 0, next: null, previous: null };
+    }
+
+    // Handle categories response
+    if (results[1].status === 'fulfilled') {
+      categories = results[1].value || [];
+      console.log('✅ Categories loaded:', categories.length, 'items');
+    } else {
+      console.error('❌ Categories failed:', results[1].reason?.message);
+      categories = [];
+    }
 
   } catch (err) {
-    console.error('❌ Error fetching data:', err);
-    error = err.message;
+    console.error('❌ Page loading error:', err);
+    if (err.message === 'API timeout') {
+      error = 'Loading is taking longer than expected. Please refresh the page.';
+    } else {
+      error = 'Failed to load page data. Please try again.';
+    }
     
-    // Fallback to prevent page crash
-    products = {
-      results: [],
-      count: 0,
-      next: null,
-      previous: null
-    };
+    // Fallback data
+    products = { results: [], count: 0, next: null, previous: null };
+    categories = [];
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white dark:from-gray-900 dark:to-gray-800">
+    <main className="min-h-screen">
       
       {/* Hero Section */}
-      <section className="relative h-[70vh] flex items-center justify-center overflow-hidden">
-        {/* Background Image */}
-        <div className="absolute inset-0 z-0">
-          <HeroImage />
-          <div className="absolute inset-0 bg-black/40"></div>
-        </div>
-
+      <section className="relative h-screen flex items-center justify-center overflow-hidden">
+        <HeroImage />
+        
         {/* Hero Content */}
         <div className="relative z-10 text-center text-white px-4 max-w-4xl mx-auto">
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 drop-shadow-lg">
-            Taste the{' '}
-            <span className="text-orange-400 inline-block animate-pulse">
-              Extraordinary
-            </span>
+            Delicious Food <br />
+            <span className="text-orange-400">Delivered Fresh</span>
           </h1>
           <p className="text-lg md:text-xl lg:text-2xl mb-8 text-gray-200 max-w-2xl mx-auto drop-shadow-md">
             Experience culinary excellence with our carefully crafted dishes made from the finest ingredients
@@ -191,13 +131,22 @@ export default async function HomePage({ searchParams }) {
         </section>
       )}
 
-      {/* Products Section - This is where pagination happens */}
+      {/* Products Section */}
       <div id="products">
         <ProductsSection 
           initialProducts={products} 
           categories={categories}
         />
       </div>
+
+      {/* Quick Debug Info (remove in production) */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="fixed bottom-4 left-4 bg-black text-white p-2 rounded text-xs z-50">
+          Products: {products?.results?.length || 0} | 
+          Categories: {categories?.length || 0} |
+          Error: {error ? 'Yes' : 'No'}
+        </div>
+      )}
 
       {/* Features Section */}
       <section className="py-20 bg-white dark:bg-gray-900">
@@ -224,17 +173,14 @@ export default async function HomePage({ searchParams }) {
                 description: "Quick preparation without compromising on taste or quality."
               },
               {
-                icon: "🎯",
-                title: "Made to Order",
-                description: "Every dish is prepared specifically for you with care and attention to detail."
+                icon: "🚚",
+                title: "Reliable Delivery",
+                description: "Fast and reliable delivery to your doorstep, hot and fresh."
               }
             ].map((feature, index) => (
-              <div 
-                key={index}
-                className="text-center p-8 rounded-xl bg-gray-50 dark:bg-gray-800 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-2"
-              >
-                <div className="text-5xl mb-4">{feature.icon}</div>
-                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
+              <div key={index} className="text-center p-6 rounded-xl bg-gray-50 dark:bg-gray-800 hover:shadow-lg transition-shadow">
+                <div className="text-4xl mb-4">{feature.icon}</div>
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-3">
                   {feature.title}
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400">
@@ -246,23 +192,23 @@ export default async function HomePage({ searchParams }) {
         </div>
       </section>
 
-      {/* Call to Action */}
-      <section className="py-20 bg-gradient-to-r from-orange-600 to-red-600">
+      {/* CTA Section */}
+      <section className="py-20 bg-gradient-to-r from-orange-600 to-orange-700">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
             Ready to Order?
           </h2>
-          <p className="text-orange-100 text-lg mb-8 max-w-2xl mx-auto">
-            Browse our menu and place your order for pickup or delivery. Fresh, delicious food is just a click away!
+          <p className="text-xl text-orange-100 mb-8 max-w-2xl mx-auto">
+            Join thousands of satisfied customers who choose us for quality food and exceptional service.
           </p>
           <Link
             href="#products"
-            className="bg-white text-orange-600 hover:bg-orange-50 px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 inline-block"
+            className="bg-white text-orange-600 hover:bg-gray-100 px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 inline-block"
           >
             Order Now
           </Link>
         </div>
       </section>
-    </div>
+    </main>
   );
 }
