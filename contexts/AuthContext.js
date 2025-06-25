@@ -198,36 +198,40 @@ export function AuthProvider({ children }) {
   };
 
   // Register function
+
+  
+
+
   const register = async (userData) => {
-    try {
-      dispatch({ type: AUTH_ACTIONS.REGISTER_START });
+  try {
+    dispatch({ type: AUTH_ACTIONS.REGISTER_START });
 
-      const response = await registerUser(userData);
-      
-      // Handle different response structures
-      const authData = {
-        user: response.user || response,
-        token: response.token || response.access_token || response.access || response.key,
-        refresh_token: response.refresh_token || response.refresh,
-      };
+    const response = await registerUser(userData);
+    
+    // Handle the correct response structure from your API
+    const authData = {
+      user: response.user,
+      token: response.tokens?.access || response.token || response.access_token || response.access,
+      refresh_token: response.tokens?.refresh || response.refresh_token || response.refresh,
+    };
 
-      console.log('✅ Registration successful, storing user data');
+    console.log('✅ Registration successful, storing user data');
 
-      dispatch({
-        type: AUTH_ACTIONS.REGISTER_SUCCESS,
-        payload: authData,
-      });
+    dispatch({
+      type: AUTH_ACTIONS.REGISTER_SUCCESS,
+      payload: authData,
+    });
 
-      return authData;
-    } catch (error) {
-      console.error('❌ Registration failed:', error);
-      dispatch({
-        type: AUTH_ACTIONS.REGISTER_ERROR,
-        payload: error.message || 'Registration failed',
-      });
-      throw error;
-    }
-  };
+    return authData;
+  } catch (error) {
+    console.error('❌ Registration failed:', error);
+    dispatch({
+      type: AUTH_ACTIONS.REGISTER_ERROR,
+      payload: error.message || 'Registration failed',
+    });
+    throw error;
+  }
+};
 
   // Logout function
   const logout = () => {

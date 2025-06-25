@@ -111,7 +111,7 @@ export async function loginUser(email, password) {
  */
 export async function registerUser(userData) {
   try {
-    console.log('📝 Attempting registration for:', userData.email);
+    console.log('🔐 Registering user:', { ...userData, password: '[HIDDEN]', password_confirm: '[HIDDEN]' });
     
     const response = await fetch(`${API_BASE_URL}/auth/register/`, {
       method: 'POST',
@@ -121,21 +121,55 @@ export async function registerUser(userData) {
       body: JSON.stringify(userData),
     });
 
+    console.log(`📡 Register response status: ${response.status}`);
+    const data = await response.json();
+
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || 'Registration failed');
+      // Handle field-specific errors
+      if (data.email && Array.isArray(data.email)) {
+        throw new Error(`Email: ${data.email[0]}`);
+      }
+      if (data.username && Array.isArray(data.username)) {
+        throw new Error(`Username: ${data.username[0]}`);
+      }
+      if (data.password && Array.isArray(data.password)) {
+        throw new Error(`Password: ${data.password[0]}`);
+      }
+      if (data.password_confirm && Array.isArray(data.password_confirm)) {
+        throw new Error(`Password confirmation: ${data.password_confirm[0]}`);
+      }
+      
+      const errorMessage = data.detail || data.message || data.error || 
+                          (data.non_field_errors && data.non_field_errors[0]) ||
+                          `Registration failed: ${response.status}`;
+      throw new Error(errorMessage);
     }
 
-    const data = await response.json();
-    console.log('✅ Registration successful');
-    
-    // Auto-login after registration if token is provided
-    if (data.token && typeof window !== 'undefined') {
-      localStorage.setItem('auth_token', data.token);
-      localStorage.setItem('user_data', JSON.stringify(data.user));
+    console.log('✅ User registered successfully');
+
+    // Store token and user data if login is automatic after registration
+    if (typeof window !== 'undefined') {
+      const token = data.token || data.access_token || data.access || data.key;
+      const user = data.user || data;
+      
+      if (token) {
+        localStorage.setItem('auth_token', token);
+        localStorage.setItem('user_data', JSON.stringify(user));
+        
+        if (data.refresh_token || data.refresh) {
+          localStorage.setItem('refresh_token', data.refresh_token || data.refresh);
+        }
+        
+        console.log('✅ Auto-login after registration successful');
+      }
     }
-    
-    return data;
+
+    return {
+      token: data.token || data.access_token || data.access || data.key,
+      user: data.user || data,
+      refresh_token: data.refresh_token || data.refresh,
+      ...data
+    };
   } catch (error) {
     console.error('❌ Registration error:', error);
     throw error;
