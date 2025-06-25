@@ -409,7 +409,7 @@ export default function Navbar() {
 
   const getCategoryIcon = (name) => {
     const iconMap = {
-      'pizza': '🍕', 'burger': '🍔', 'sushi': '🍱', 'pasta': '🍝', 'salad': '🥗',
+      'pizza': '🍕', 'burgers': '🍔', 'sushi': '🍱', 'pasta': '🍝', 'salad': '🥗',
       'dessert': '🍰', 'drinks': '🥤', 'coffee': '☕', 'healthy': '🥑', 'asian': '🥢',
       'mexican': '🌮', 'indian': '🍛', 'chicken': '🍗', 'fish': '🐟', 'beef': '🥩',
       'vegetarian': '🥬', 'spicy': '🌶️', 'food': '🍽️', 'beverage': '🥤',
