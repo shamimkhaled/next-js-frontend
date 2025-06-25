@@ -1,4 +1,4 @@
-// app/login/LoginForm.js - Updated with Correct Google Client ID
+// app/login/LoginForm.js - Updated with Fixed Google Login
 'use client';
 
 import { useState, Suspense, useEffect, useRef } from 'react';
@@ -10,7 +10,16 @@ import Script from 'next/script';
 function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, isLoggingIn, error: authError, clearError } = useAuth();
+  const { 
+    login, 
+    isLoggingIn, 
+    error: authError, 
+    clearError, 
+    googleLoginSuccess,  // NEW: From updated AuthContext
+    isAuthenticated,     // NEW: For debugging
+    user                 // NEW: For debugging
+  } = useAuth();
+  
   const googleInitialized = useRef(false);
   
   const [formData, setFormData] = useState({
@@ -23,10 +32,19 @@ function LoginFormContent() {
   const [googleReady, setGoogleReady] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
   
-  // UPDATED: Your correct Google Client ID
+  // Google Client ID
   const GOOGLE_CLIENT_ID = '796522283819-0mbclusc9r9g903o8u1rjvm7ttciokvn.apps.googleusercontent.com';
   
   const redirectUrl = searchParams.get('redirect') || '/';
+
+  // Debug: Log auth state changes
+  useEffect(() => {
+    console.log('🔍 Auth state in LoginForm:', {
+      isAuthenticated,
+      hasUser: !!user,
+      userEmail: user?.email
+    });
+  }, [isAuthenticated, user]);
 
   // Check if Google is already loaded
   useEffect(() => {
@@ -83,12 +101,12 @@ function LoginFormContent() {
     }
 
     try {
-      console.log('🔐 Attempting login with email:', formData.username);
+      console.log('🔐 Attempting regular login with email:', formData.username);
       const result = await login(formData);
-      console.log('✅ Login successful:', result);
+      console.log('✅ Regular login successful:', result);
       router.push(redirectUrl);
     } catch (error) {
-      console.error('❌ Login error:', error);
+      console.error('❌ Regular login error:', error);
       setLocalError(error.message || 'Login failed. Please try again.');
     }
   };
@@ -129,13 +147,12 @@ function LoginFormContent() {
           callback: handleCredentialResponse,
           auto_select: false,
           cancel_on_tap_outside: true,
-          // FIXED: Add FedCM support to eliminate warning
           use_fedcm_for_prompt: true
         });
 
         // Render the button
         const buttonDiv = document.getElementById('google-signin-button');
-        if (buttonDiv && buttonDiv.children.length === 0) { // Only render if not already rendered
+        if (buttonDiv && buttonDiv.children.length === 0) {
           window.google.accounts.id.renderButton(buttonDiv, {
             theme: 'outline',
             size: 'large',
@@ -175,12 +192,11 @@ function LoginFormContent() {
       }
 
       if (!googleReady) {
-        await new Promise(resolve => setTimeout(resolve, 500)); // Wait briefly
+        await new Promise(resolve => setTimeout(resolve, 500));
         initializeGoogleSignIn();
       }
 
       if (window.google && window.google.accounts && window.google.accounts.id) {
-        // FIXED: Use prompt without callback to avoid FedCM warning
         window.google.accounts.id.prompt();
       } else {
         throw new Error('Google Sign-In not available');
@@ -193,28 +209,23 @@ function LoginFormContent() {
     }
   };
 
-  // Handle Google Credential Response
+  // UPDATED: Handle Google Credential Response with AuthContext integration
   const handleCredentialResponse = async (response) => {
     console.log('🎯 ===== GOOGLE LOGIN DEBUG START =====');
     console.log('🔐 Google credential received');
     console.log('📋 Full response object:', response);
     
-    // Extract the ID Token (this IS the id_token you want!)
     const id_token = response.credential;
-    console.log('🆔 GOOGLE ID_TOKEN (Full):');
-    console.log('========================================');
-    console.log(id_token);
-    console.log('========================================');
+    console.log('🆔 ID Token received:', id_token ? 'Yes' : 'No');
     console.log('📏 ID Token length:', id_token ? id_token.length : 'NO TOKEN');
-    console.log('🔍 ID Token type: JWT (JSON Web Token)');
     
-    // Store the id_token for easy access
+    // Store the id_token for debugging
     if (typeof window !== 'undefined') {
       window.google_id_token = id_token;
-      console.log('💾 ID Token stored in window.google_id_token for easy access');
+      console.log('💾 ID Token stored in window.google_id_token for debugging');
     }
     
-    // Decode and show token payload
+    // Decode and show token payload for debugging
     if (id_token) {
       try {
         const payload = JSON.parse(atob(id_token.split('.')[1]));
@@ -222,71 +233,90 @@ function LoginFormContent() {
           email: payload.email,
           name: payload.name,
           picture: payload.picture,
-          iss: payload.iss, // Issuer (Google)
-          aud: payload.aud, // Audience (Your Client ID)
+          iss: payload.iss,
+          aud: payload.aud,
           exp: new Date(payload.exp * 1000).toISOString(),
           iat: new Date(payload.iat * 1000).toISOString()
         });
-        console.log('📋 Full token payload:', payload);
       } catch (e) {
         console.error('❌ Failed to decode ID token:', e);
       }
     }
     
     setIsGoogleLoading(true);
+    clearError(); // Clear any previous errors
     
     try {
-      console.log('📤 About to send ID token to backend...');
-      console.log('🔗 Sending id_token:', id_token.substring(0, 50) + '...');
-      
+      console.log('📤 Sending ID token to backend...');
       const result = await sendGoogleTokenToBackend(id_token);
-      console.log('✅ Google login successful');
-      console.log('📊 Backend response:', result);
+      console.log('✅ Backend authentication successful');
+      console.log('📊 Backend response structure:', {
+        hasTokens: !!result.tokens,
+        hasUser: !!result.user,
+        tokenKeys: result.tokens ? Object.keys(result.tokens) : [],
+        userKeys: result.user ? Object.keys(result.user) : []
+      });
       
       if (result.tokens && result.user) {
-        console.log('💾 Storing authentication tokens...');
-        console.log('🔑 Access token:', result.tokens.access.substring(0, 20) + '...');
-        console.log('🔄 Refresh token:', result.tokens.refresh.substring(0, 20) + '...');
-        console.log('👤 User data:', result.user);
+        console.log('💾 Storing authentication data...');
+        console.log('🔑 Access token preview:', result.tokens.access?.substring(0, 20) + '...');
+        console.log('🔄 Refresh token preview:', result.tokens.refresh?.substring(0, 20) + '...');
+        console.log('👤 User data:', {
+          id: result.user.id,
+          email: result.user.email,
+          name: result.user.full_name || result.user.name
+        });
         
+        // Store in localStorage
         if (typeof window !== 'undefined') {
-          // Store access token (main auth token)
           localStorage.setItem('auth_token', result.tokens.access);
           localStorage.setItem('access_token', result.tokens.access);
-          
-          // Store refresh token
           localStorage.setItem('refresh_token', result.tokens.refresh);
-          
-          // Store user data
           localStorage.setItem('user_data', JSON.stringify(result.user));
-          
-          // Store additional user info for easy access
           localStorage.setItem('user_id', result.user.id.toString());
           localStorage.setItem('user_email', result.user.email);
-          localStorage.setItem('user_name', result.user.full_name);
+          localStorage.setItem('user_name', result.user.full_name || result.user.name || '');
           
-          console.log('✅ All authentication data stored in localStorage');
-          console.log('📊 Stored items:');
-          console.log('   - auth_token (access token)');
-          console.log('   - access_token');
-          console.log('   - refresh_token');
-          console.log('   - user_data');
-          console.log('   - user_id, user_email, user_name');
+          console.log('✅ Authentication data stored in localStorage');
+          console.log('📊 LocalStorage items stored:');
+          console.log('   - auth_token, access_token, refresh_token');
+          console.log('   - user_data, user_id, user_email, user_name');
         }
         
-        // Update auth context if available
-        if (typeof clearError === 'function') {
-          clearError();
-        }
+        // *** KEY FIX: Update AuthContext state ***
+        console.log('🔄 Updating AuthContext state with googleLoginSuccess...');
         
-        console.log('🚀 Redirecting to:', redirectUrl);
-        router.push(redirectUrl);
+        const authData = {
+          user: result.user,
+          token: result.tokens.access,
+          refresh_token: result.tokens.refresh
+        };
+        
+        console.log('📊 Calling googleLoginSuccess with:', {
+          hasUser: !!authData.user,
+          hasToken: !!authData.token,
+          userEmail: authData.user?.email
+        });
+        
+        googleLoginSuccess(authData);
+        
+        console.log('✅ AuthContext state updated successfully');
+        console.log('🚀 Preparing to redirect to:', redirectUrl);
+        
+        // Small delay to ensure state propagation
+        setTimeout(() => {
+          console.log('🚀 Redirecting now...');
+          router.push(redirectUrl);
+        }, 200);
+        
       } else {
-        console.error('❌ Invalid response format:', result);
+        console.error('❌ Invalid response format from backend');
         console.log('📊 Expected: {tokens: {access, refresh}, user: {...}}');
-        console.log('📊 Received:', Object.keys(result));
+        console.log('📊 Received keys:', Object.keys(result || {}));
+        console.log('📊 Full response:', result);
         throw new Error('Invalid response format from backend - missing tokens or user data');
       }
+      
     } catch (error) {
       console.error('❌ Google authentication failed:', error);
       console.error('📊 Error details:', {
@@ -314,8 +344,8 @@ function LoginFormContent() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          id_token: id_token,        // Send as id_token
-          google_token: id_token     // Also send as google_token (backup for your current backend)
+          id_token: id_token,
+          google_token: id_token // Backup field name
         }),
       });
 
@@ -345,7 +375,7 @@ function LoginFormContent() {
 
       const data = await response.json();
       console.log('✅ Backend authentication successful');
-      console.log('📊 Success response data:', data);
+      console.log('📊 Success response data keys:', Object.keys(data));
       return data;
     } catch (error) {
       console.error('❌ Backend authentication error:', error);
@@ -362,7 +392,7 @@ function LoginFormContent() {
 
   return (
     <>
-      {/* Load Google Script using Next.js Script component */}
+      {/* Load Google Script */}
       <Script
         src="https://accounts.google.com/gsi/client"
         strategy="afterInteractive"
@@ -398,27 +428,30 @@ function LoginFormContent() {
             </div>
           )}
 
+          {/* Debug Info */}
+          <div className="mb-4 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm">
+            <p className="text-gray-600 dark:text-gray-400">
+              <strong>Debug Status:</strong>
+            </p>
+            <p className="text-gray-600 dark:text-gray-400">
+              Script Loaded: {scriptLoaded ? '✅' : '❌'}
+            </p>
+            <p className="text-gray-600 dark:text-gray-400">
+              Google API: {typeof window !== 'undefined' && window.google ? '✅' : '❌'}
+            </p>
+            <p className="text-gray-600 dark:text-gray-400">
+              Google Ready: {googleReady ? '✅' : '❌'}
+            </p>
+            <p className="text-gray-600 dark:text-gray-400">
+              Auth State: {isAuthenticated ? '✅ Logged In' : '❌ Not Logged In'}
+            </p>
+            <p className="text-gray-600 dark:text-gray-400 text-xs mt-1">
+              Client ID: {GOOGLE_CLIENT_ID.substring(0, 20)}...
+            </p>
+          </div>
+
           {/* Google Login Section */}
           <div className="mt-6">
-            {/* Debug Info (you can remove this in production) */}
-            <div className="mb-4 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm">
-              <p className="text-gray-600 dark:text-gray-400">
-                <strong>Debug Info:</strong>
-              </p>
-              <p className="text-gray-600 dark:text-gray-400">
-                Script Loaded: {scriptLoaded ? '✅' : '❌'}
-              </p>
-              <p className="text-gray-600 dark:text-gray-400">
-                Google API: {typeof window !== 'undefined' && window.google ? '✅' : '❌'}
-              </p>
-              <p className="text-gray-600 dark:text-gray-400">
-                Ready: {googleReady ? '✅' : '❌'}
-              </p>
-              <p className="text-gray-600 dark:text-gray-400 text-xs mt-1">
-                Client ID: {GOOGLE_CLIENT_ID.substring(0, 20)}...
-              </p>
-            </div>
-
             {/* Google's Official Button Container */}
             <div id="google-signin-button" className="w-full flex justify-center mb-4 min-h-[44px]">
               {/* Google button will be rendered here */}
@@ -438,48 +471,36 @@ function LoginFormContent() {
                   </svg>
                   Signing in with Google...
                 </>
-              ) : !scriptLoaded ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-700 dark:text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Loading Google Sign-In...
-                </>
               ) : (
                 <>
-                  <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
-                    <path fill="#4285f4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34a853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#fbbc05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                    <path fill="#ea4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                   </svg>
-                  {googleReady ? 'Sign in with Google' : 'Initialize Google Sign-In'}
+                  Continue with Google (Fallback)
                 </>
               )}
             </button>
           </div>
 
           {/* Divider */}
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300 dark:border-gray-600" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400">
-                  Or continue with email
-                </span>
-              </div>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300 dark:border-gray-600" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400">Or continue with email</span>
             </div>
           </div>
-          
+
           {/* Email/Password Form */}
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-            <div className="space-y-4">
+            <div className="rounded-md shadow-sm -space-y-px">
               <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Email Address
+                <label htmlFor="username" className="sr-only">
+                  Email address
                 </label>
                 <input
                   id="username"
@@ -487,49 +508,43 @@ function LoginFormContent() {
                   type="email"
                   autoComplete="email"
                   required
+                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-800 rounded-t-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 focus:z-10 sm:text-sm"
+                  placeholder="Email address"
                   value={formData.username}
                   onChange={handleChange}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-orange-500 focus:border-orange-500"
-                  placeholder="Enter your email address"
-                  disabled={isLoggingIn || isGoogleLoading}
                 />
               </div>
-              
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <div className="relative">
+                <label htmlFor="password" className="sr-only">
                   Password
                 </label>
-                <div className="mt-1 relative">
-                  <input
-                    id="password"
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    required
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="block w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-orange-500 focus:border-orange-500"
-                    placeholder="Enter your password"
-                    disabled={isLoggingIn || isGoogleLoading}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    disabled={isLoggingIn || isGoogleLoading}
-                  >
-                    {showPassword ? (
-                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                      </svg>
-                    ) : (
-                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  required
+                  className="appearance-none rounded-none relative block w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-800 rounded-b-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 focus:z-10 sm:text-sm"
+                  placeholder="Password"
+                  value={formData.password}
+                  onChange={handleChange}
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.172 6.172a1.414 1.414 0 00-2-2l-2 2m5.656 5.656L9.172 13.172" />
+                    </svg>
+                  ) : (
+                    <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
               </div>
             </div>
 
@@ -548,7 +563,7 @@ function LoginFormContent() {
               <button
                 type="submit"
                 disabled={isLoggingIn || isGoogleLoading}
-                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
               >
                 {isLoggingIn ? (
                   <>
@@ -573,17 +588,8 @@ function LoginFormContent() {
 export default function LoginForm() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 dark:bg-gray-600 rounded w-64 mx-auto mb-6"></div>
-          <div className="space-y-4">
-            <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-32"></div>
-            <div className="h-10 bg-gray-200 dark:bg-gray-600 rounded w-80"></div>
-            <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-32"></div>
-            <div className="h-10 bg-gray-200 dark:bg-gray-600 rounded w-80"></div>
-            <div className="h-10 bg-gray-200 dark:bg-gray-600 rounded w-80"></div>
-          </div>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
       </div>
     }>
       <LoginFormContent />

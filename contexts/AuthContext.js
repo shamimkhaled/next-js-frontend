@@ -1,4 +1,4 @@
-// contexts/AuthContext.js - Authentication Context Provider
+// contexts/AuthContext.js - Complete Authentication Context Provider
 'use client';
 
 import { createContext, useContext, useReducer, useEffect } from 'react';
@@ -18,6 +18,7 @@ const AUTH_ACTIONS = {
   LOGOUT: 'LOGOUT',
   LOAD_USER: 'LOAD_USER',
   CLEAR_ERROR: 'CLEAR_ERROR',
+  GOOGLE_LOGIN_SUCCESS: 'GOOGLE_LOGIN_SUCCESS', // NEW: For Google login
 };
 
 // Initial state
@@ -107,8 +108,20 @@ function authReducer(state, action) {
         ...state,
         user: action.payload?.user || null,
         token: action.payload?.token || null,
-        isAuthenticated: !!action.payload,
+        isAuthenticated: !!(action.payload?.user && action.payload?.token),
         isLoading: false,
+      };
+
+    // NEW: Handle Google login success
+    case AUTH_ACTIONS.GOOGLE_LOGIN_SUCCESS:
+      return {
+        ...state,
+        user: action.payload.user,
+        token: action.payload.token,
+        isAuthenticated: true,
+        isLoggingIn: false,
+        isLoading: false,
+        error: null,
       };
 
     case AUTH_ACTIONS.CLEAR_ERROR:
@@ -157,6 +170,7 @@ export function AuthProvider({ children }) {
     // Optional: Set up storage event listener for multi-tab sync
     const handleStorageChange = (e) => {
       if (e.key === 'auth_token' || e.key === 'user_data') {
+        console.log('🔄 Storage changed, reloading user data');
         loadUserFromStorage();
       }
     };
@@ -165,7 +179,7 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  // Login function
+  // Regular login function
   const login = async (credentials) => {
     try {
       dispatch({ type: AUTH_ACTIONS.LOGIN_START });
@@ -197,55 +211,92 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Register function
-
-  
-
-
-  const register = async (userData) => {
-  try {
-    dispatch({ type: AUTH_ACTIONS.REGISTER_START });
-
-    const response = await registerUser(userData);
+  // NEW: Google login success handler
+  const googleLoginSuccess = (authData) => {
+    console.log('🎉 Google login success - updating auth context');
+    console.log('📊 Auth data:', authData);
     
-    // Handle the correct response structure from your API
-    const authData = {
-      user: response.user,
-      token: response.tokens?.access || response.token || response.access_token || response.access,
-      refresh_token: response.tokens?.refresh || response.refresh_token || response.refresh,
-    };
-
-    console.log('✅ Registration successful, storing user data');
-
     dispatch({
-      type: AUTH_ACTIONS.REGISTER_SUCCESS,
-      payload: authData,
+      type: AUTH_ACTIONS.GOOGLE_LOGIN_SUCCESS,
+      payload: {
+        user: authData.user,
+        token: authData.token,
+        refresh_token: authData.refresh_token,
+      },
     });
+  };
 
-    return authData;
-  } catch (error) {
-    console.error('❌ Registration failed:', error);
-    dispatch({
-      type: AUTH_ACTIONS.REGISTER_ERROR,
-      payload: error.message || 'Registration failed',
-    });
-    throw error;
-  }
-};
+  // Register function
+  const register = async (userData) => {
+    try {
+      dispatch({ type: AUTH_ACTIONS.REGISTER_START });
+
+      const response = await registerUser(userData);
+      
+      // Handle the correct response structure from your API
+      const authData = {
+        user: response.user,
+        token: response.tokens?.access || response.token || response.access_token || response.access,
+        refresh_token: response.tokens?.refresh || response.refresh_token || response.refresh,
+      };
+
+      console.log('✅ Registration successful, storing user data');
+
+      dispatch({
+        type: AUTH_ACTIONS.REGISTER_SUCCESS,
+        payload: authData,
+      });
+
+      return authData;
+    } catch (error) {
+      console.error('❌ Registration failed:', error);
+      dispatch({
+        type: AUTH_ACTIONS.REGISTER_ERROR,
+        payload: error.message || 'Registration failed',
+      });
+      throw error;
+    }
+  };
 
   // Logout function
   const logout = () => {
     try {
+      console.log('🔐 Logging out user');
       logoutUser(); // Clear localStorage
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('❌ Logout error:', error);
     }
   };
 
   // Clear error function
   const clearError = () => {
     dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
+  };
+
+  // NEW: Force refresh auth state (useful for debugging)
+  const refreshAuthState = () => {
+    console.log('🔄 Manually refreshing auth state');
+    try {
+      const currentUser = getCurrentUser();
+      const isAuth = isAuthenticated();
+      
+      dispatch({
+        type: AUTH_ACTIONS.LOAD_USER,
+        payload: currentUser,
+      });
+    } catch (error) {
+      console.error('❌ Error refreshing auth state:', error);
+    }
+  };
+
+  // NEW: Update auth state directly (for special cases)
+  const updateAuthState = (authData) => {
+    console.log('🔄 Updating auth state directly');
+    dispatch({
+      type: AUTH_ACTIONS.LOGIN_SUCCESS,
+      payload: authData,
+    });
   };
 
   // Context value
@@ -264,6 +315,9 @@ export function AuthProvider({ children }) {
     register,
     logout,
     clearError,
+    googleLoginSuccess,    // NEW: For Google login
+    refreshAuthState,      // NEW: For manual refresh
+    updateAuthState,       // NEW: For direct updates
   };
 
   return (
@@ -316,4 +370,22 @@ export function withAuth(Component) {
     
     return <Component {...props} />;
   };
+}
+
+// Debug helper (remove in production)
+export function useAuthDebug() {
+  const auth = useAuth();
+  
+  // Log auth state changes
+  useEffect(() => {
+    console.log('🔍 Auth State Debug:', {
+      isAuthenticated: auth.isAuthenticated,
+      hasUser: !!auth.user,
+      hasToken: !!auth.token,
+      isLoading: auth.isLoading,
+      error: auth.error,
+    });
+  }, [auth.isAuthenticated, auth.user, auth.token, auth.isLoading, auth.error]);
+  
+  return auth;
 }
