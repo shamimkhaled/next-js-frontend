@@ -1,312 +1,469 @@
-// app/orders/page.js - User Orders History Page
+// app/order/page.js - Order Management Page (App Router)
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { useOrder } from '@/contexts/OrderContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { 
+  getUserOrders, 
+  rateUserOrder,
+  getOrderStatusColor,
+  getPaymentStatusColor,
+  formatOrderDate,
+  calculateTotalPages,
+  extractPageFromUrl 
+} from '../../lib/userOrdersApi';
+import { isAuthenticated } from '../../utils/auth';
 
-export default function OrdersPage() {
-  const router = useRouter();
-  const { orderHistory, fetchOrderHistory, orderError } = useOrder();
-  const { isAuthenticated, user } = useAuth();
-  
-  const [isLoading, setIsLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+// Order status color mapping using the new API helper
+const getStatusColor = (status) => {
+  return getOrderStatusColor(status);
+};
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/login?redirect=/orders');
-      return;
+// Payment status color mapping using the new API helper
+const getPaymentColor = (paymentStatus) => {
+  return getPaymentStatusColor(paymentStatus);
+};
+
+// Format date helper using the new API helper
+const formatDate = (dateString) => {
+  return formatOrderDate(dateString);
+};
+
+// Order Card Component
+const OrderCard = ({ order, onRate }) => {
+  const [isRating, setIsRating] = useState(false);
+  const [rating, setRating] = useState(5);
+  const [review, setReview] = useState('');
+
+  const handleRate = async () => {
+    try {
+      await onRate(order.id, rating, review);
+      setIsRating(false);
+      setReview('');
+    } catch (error) {
+      alert(`Failed to rate order: ${error.message}`);
     }
-  }, [isAuthenticated, router]);
+  };
 
-  // Load orders when component mounts
+  return (
+    <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow duration-200">
+      {/* Order Header */}
+      <div className="flex justify-between items-start mb-4">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">
+            Order #{order.order_number}
+          </h3>
+          <p className="text-sm text-gray-500">
+            {formatDate(order.created_at)}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-xl font-bold text-gray-900">
+            ${parseFloat(order.total_amount).toFixed(2)}
+          </p>
+          <p className="text-sm text-gray-500">
+            {order.total_items} item{order.total_items !== 1 ? 's' : ''}
+          </p>
+        </div>
+      </div>
+
+      {/* Status Badges */}
+      <div className="flex gap-2 mb-4">
+        <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
+          {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+        </span>
+        <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getPaymentColor(order.payment_status)}`}>
+          Payment: {order.payment_status.charAt(0).toUpperCase() + order.payment_status.slice(1)}
+        </span>
+        <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+          {order.order_type.charAt(0).toUpperCase() + order.order_type.slice(1)}
+        </span>
+      </div>
+
+      {/* Order Items */}
+      <div className="mb-4">
+        <h4 className="text-sm font-medium text-gray-700 mb-2">Items:</h4>
+        <ul className="text-sm text-gray-600">
+          {order.order_summary.map((item, index) => (
+            <li key={index} className="flex justify-between">
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Customer Info */}
+      {order.customer_name && (
+        <div className="mb-4 text-sm">
+          <span className="text-gray-500">Customer: </span>
+          <span className="text-gray-900">{order.customer_name}</span>
+        </div>
+      )}
+
+      {/* Estimated Delivery */}
+      {order.estimated_delivery_time && (
+        <div className="mb-4 text-sm">
+          <span className="text-gray-500">Estimated Delivery: </span>
+          <span className="text-gray-900">{formatDate(order.estimated_delivery_time)}</span>
+        </div>
+      )}
+
+      {/* Rating Display */}
+      {order.customer_rating && (
+        <div className="mb-4">
+          <div className="flex items-center gap-1">
+            <span className="text-sm text-gray-500">Rating:</span>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <span
+                key={star}
+                className={`text-lg ${star <= order.customer_rating ? 'text-yellow-400' : 'text-gray-300'}`}
+              >
+                ★
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Rating Form */}
+      {isRating && (
+        <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+          <h5 className="text-sm font-medium mb-2">Rate this order:</h5>
+          <div className="flex items-center gap-1 mb-3">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                onClick={() => setRating(star)}
+                className={`text-2xl ${star <= rating ? 'text-yellow-400' : 'text-gray-300'} hover:text-yellow-400`}
+              >
+                ★
+              </button>
+            ))}
+          </div>
+          <textarea
+            placeholder="Leave a review (optional)"
+            value={review}
+            onChange={(e) => setReview(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-3"
+            rows="3"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={handleRate}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700"
+            >
+              Submit Rating
+            </button>
+            <button
+              onClick={() => setIsRating(false)}
+              className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md text-sm hover:bg-gray-400"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="flex gap-2 pt-4 border-t border-gray-200">
+        {order.can_be_rated && !order.customer_rating && (
+          <button
+            onClick={() => setIsRating(true)}
+            className="px-4 py-2 bg-yellow-600 text-white rounded-md text-sm hover:bg-yellow-700 transition-colors"
+          >
+            Rate Order
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Main Orders Page Component for App Router
+export default function OrderPage() {
+  const router = useRouter();
+  
+  // State for orders data and UI
+  const [ordersData, setOrdersData] = useState(null);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
+  const [hasPrevious, setHasPrevious] = useState(false);
+  const [nextPageNumber, setNextPageNumber] = useState(null);
+  const [previousPageNumber, setPreviousPageNumber] = useState(null);
+  const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
+
+  // Check authentication on mount
   useEffect(() => {
-    const loadOrders = async () => {
-      if (!isAuthenticated) return;
-
-      try {
-        setIsLoading(true);
-        await fetchOrderHistory();
-      } catch (error) {
-        console.error('Failed to load orders:', error);
-      } finally {
-        setIsLoading(false);
+    const checkAuth = () => {
+      const authenticated = isAuthenticated();
+      setIsUserAuthenticated(authenticated);
+      
+      if (!authenticated) {
+        // Redirect to login if not authenticated
+        router.push('/login?redirect=/order');
+        return;
       }
     };
 
-    loadOrders();
-  }, [isAuthenticated, fetchOrderHistory]);
+    checkAuth();
+  }, [router]);
 
-  // Refresh orders
-  const handleRefresh = async () => {
-    setRefreshing(true);
+  // Fetch orders using the new API
+  const loadOrders = async (page = 1) => {
+    if (!isUserAuthenticated) return;
+
+    setLoading(true);
+    setError(null);
+
     try {
-      await fetchOrderHistory();
-    } catch (error) {
-      console.error('Failed to refresh orders:', error);
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  // Helper function to format order status
-  const formatStatus = (status) => {
-    return status?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Pending';
-  };
-
-  // Helper function to get status color
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
-      case 'confirmed':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
-      case 'preparing':
-        return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400';
-      case 'ready':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
-      case 'delivered':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
-    }
-  };
-
-  // Format date
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Unknown';
-    try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
+      console.log(`📦 Loading orders for page ${page}...`);
+      
+      const response = await getUserOrders(page);
+      
+      console.log('📊 Orders API Response:', response);
+      
+      // Update state with the response data
+      setOrdersData(response);
+      setOrders(response.results || []);
+      setTotalCount(response.count || 0);
+      setHasNext(!!response.next);
+      setHasPrevious(!!response.previous);
+      setCurrentPage(page);
+      
+      // Calculate total pages
+      const totalPagesCount = calculateTotalPages(response.count || 0, 10);
+      setTotalPages(totalPagesCount);
+      
+      // Extract page numbers from URLs
+      setNextPageNumber(extractPageFromUrl(response.next));
+      setPreviousPageNumber(extractPageFromUrl(response.previous));
+      
+      console.log('✅ Orders loaded successfully:', {
+        totalOrders: response.count,
+        currentPageOrders: response.results?.length || 0,
+        currentPage: page,
+        totalPages: totalPagesCount,
+        hasNext: !!response.next,
+        hasPrevious: !!response.previous
       });
-    } catch (error) {
-      return 'Invalid Date';
+      
+    } catch (err) {
+      console.error('❌ Failed to load orders:', err);
+      setError(err.message || 'Failed to load orders');
+      
+      // If unauthorized, redirect to login
+      if (err.message.includes('Authentication required') || 
+          err.message.includes('401') || 
+          err.message.includes('Unauthorized')) {
+        console.log('🔄 Redirecting to login due to authentication error');
+        router.push('/login?redirect=/order');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (!isAuthenticated) {
+  // Load orders on mount and authentication change
+  useEffect(() => {
+    if (isUserAuthenticated) {
+      loadOrders(1);
+    }
+  }, [isUserAuthenticated]);
+
+  // Handle order rating using the new API
+  const handleRateOrder = async (orderId, rating, review) => {
+    try {
+      console.log(`⭐ Attempting to rate order: ${orderId} with ${rating}/5`);
+      
+      await rateUserOrder(orderId, rating, review);
+      
+      console.log('✅ Order rated successfully');
+      
+      // Refresh orders list to show updated rating
+      await loadOrders(currentPage);
+      alert('Order rated successfully');
+    } catch (error) {
+      console.error('❌ Rate order error:', error);
+      alert(`Failed to rate order: ${error.message}`);
+      throw error;
+    }
+  };
+
+  // Handle view order details - removed functionality
+
+  // Handle pagination with improved logic
+  const handlePageChange = (newPage) => {
+    console.log(`📄 Changing to page: ${newPage}`);
+    loadOrders(newPage);
+  };
+
+  // Handle next page
+  const handleNextPage = () => {
+    if (hasNext && nextPageNumber) {
+      handlePageChange(nextPageNumber);
+    }
+  };
+
+  // Handle previous page
+  const handlePreviousPage = () => {
+    if (hasPrevious && previousPageNumber) {
+      handlePageChange(previousPageNumber);
+    } else if (hasPrevious && currentPage > 1) {
+      handlePageChange(currentPage - 1);
+    }
+  };
+
+  // Don't render if not authenticated
+  if (!isUserAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Please log in to view your orders</h2>
-          <p className="text-gray-600">Redirecting to login page...</p>
+          <h2 className="text-xl font-semibold mb-2">Authentication Required</h2>
+          <p className="text-gray-600">Redirecting to login...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+    <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              Your Orders
-            </h1>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Track your order history and current orders
-            </p>
-          </div>
-          <div className="mt-4 sm:mt-0 flex space-x-3">
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition-colors duration-200 disabled:opacity-50"
-            >
-              {refreshing ? (
-                <span className="flex items-center">
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Refreshing...
-                </span>
-              ) : (
-                'Refresh'
-              )}
-            </button>
-            <Link
-              href="/"
-              className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200"
-            >
-              Continue Shopping
-            </Link>
+        {/* Page Header */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">My Orders</h1>
+              <p className="text-gray-600 mt-2">
+                Track and manage your food delivery orders
+              </p>
+            </div>
+            <div>
+              <button 
+                onClick={() => router.push('/')}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Order More Food
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Loading State */}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                Loading your orders...
-              </h2>
-              <p className="text-gray-600 dark:text-gray-400">
-                Please wait while we fetch your order history
-              </p>
-            </div>
+        {loading && (
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p className="mt-4 text-gray-600">Loading your orders...</p>
           </div>
-        ) : (
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+            <strong>Error:</strong> {error}
+            <button
+              onClick={() => loadOrders(currentPage)}
+              className="ml-4 text-red-600 hover:text-red-800 underline"
+            >
+              Try Again
+            </button>
+          </div>
+        )}
+
+        {/* Orders List */}
+        {!loading && !error && (
           <>
-            {/* Error State */}
-            {orderError && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
+            {/* Summary with improved info */}
+            <div className="mb-6">
+              <div className="flex justify-between items-center">
+                <p className="text-gray-600">
+                  Showing {orders.length} of {totalCount} orders
+                  {totalPages > 1 && (
+                    <span className="ml-2 text-sm">
+                      (Page {currentPage} of {totalPages})
+                    </span>
+                  )}
+                </p>
+                {ordersData && (ordersData.next || ordersData.previous) && (
+                  <div className="text-sm text-gray-500">
+                    {ordersData.previous && (
+                      <span>← Previous</span>
+                    )}
+                    {ordersData.previous && ordersData.next && (
+                      <span className="mx-2">•</span>
+                    )}
+                    {ordersData.next && (
+                      <span>Next →</span>
+                    )}
                   </div>
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-red-800 dark:text-red-400">
-                      Error loading orders
-                    </h3>
-                    <div className="mt-2 text-sm text-red-700 dark:text-red-300">
-                      <p>{orderError}</p>
-                    </div>
-                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Orders Grid */}
+            {orders.length > 0 ? (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {orders.map((order) => (
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    onRate={handleRateOrder}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  No orders yet
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  You have not placed any orders yet. Start browsing our menu!
+                </p>
+                <div>
+                  <button 
+                    onClick={() => router.push('/')}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Browse Menu
+                  </button>
                 </div>
               </div>
             )}
 
-            {/* Orders List */}
-            {orderHistory && orderHistory.length > 0 ? (
-              <div className="space-y-6">
-                {orderHistory.map((order) => (
-                  <div key={order.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-                    <div className="p-6">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                            Order #{order.id || order.order_number}
-                          </h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                            {formatDate(order.created_at)}
-                          </p>
-                        </div>
-                        <div className="mt-3 sm:mt-0 flex items-center space-x-3">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}>
-                            {formatStatus(order.status)}
-                          </span>
-                          {order.total && (
-                            <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                              ${parseFloat(order.total).toFixed(2)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                        <div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Order Type</p>
-                          <p className="font-medium text-gray-900 dark:text-white">
-                            {order.order_type === 'delivery' ? 'Delivery' : 'Pickup'}
-                          </p>
-                        </div>
-                        
-                        {order.order_type === 'delivery' && order.delivery_address && (
-                          <div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">Delivery Address</p>
-                            <p className="font-medium text-gray-900 dark:text-white">
-                              {order.delivery_address.address_line_1}, {order.delivery_address.city}
-                            </p>
-                          </div>
-                        )}
-
-                        {order.special_instructions && (
-                          <div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">Special Instructions</p>
-                            <p className="font-medium text-gray-900 dark:text-white truncate">
-                              {order.special_instructions}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Order Items Preview */}
-                      {order.items && order.items.length > 0 && (
-                        <div className="mb-4">
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Items</p>
-                          <div className="text-sm text-gray-900 dark:text-white">
-                            {order.items.slice(0, 3).map((item, index) => (
-                              <span key={index}>
-                                {item.name || item.product_name}
-                                {index < Math.min(order.items.length, 3) - 1 && ', '}
-                              </span>
-                            ))}
-                            {order.items.length > 3 && (
-                              <span className="text-gray-500"> +{order.items.length - 3} more</span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Action Buttons */}
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center pt-4 border-t border-gray-200 dark:border-gray-600">
-                        <div className="flex space-x-3 mb-3 sm:mb-0">
-                          <Link
-                            href={`/order-confirmation/${order.id}`}
-                            className="text-orange-600 hover:text-orange-700 font-medium text-sm transition-colors duration-200"
-                          >
-                            View Details
-                          </Link>
-                          {order.status === 'delivered' && (
-                            <button className="text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors duration-200">
-                              Reorder
-                            </button>
-                          )}
-                        </div>
-                        
-                        {(order.status === 'pending' || order.status === 'confirmed') && (
-                          <div className="text-sm">
-                            <span className="inline-flex items-center text-blue-600 dark:text-blue-400">
-                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              Order in progress
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              /* Empty State */
-              <div className="text-center py-12">
-                <div className="mx-auto h-24 w-24 text-gray-400 mb-4">
-                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-full h-full">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                  No orders yet
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  You haven't placed any orders yet. Start shopping to see your orders here.
-                </p>
-                <Link
-                  href="/"
-                  className="inline-flex items-center bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
+            {/* Enhanced Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-8 flex justify-center items-center gap-4">
+                {/* Previous Button */}
+                <button
+                  onClick={handlePreviousPage}
+                  disabled={!hasPrevious}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md disabled:bg-gray-200 disabled:text-gray-400 hover:bg-gray-400 disabled:hover:bg-gray-200 transition-colors"
                 >
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                  </svg>
-                  Start Shopping
-                </Link>
+                  Previous
+                </button>
+                
+                {/* Page Info */}
+                <div className="flex items-center gap-4">
+                  <span className="text-gray-600">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    ({totalCount} total orders)
+                  </span>
+                </div>
+                
+                {/* Next Button */}
+                <button
+                  onClick={handleNextPage}
+                  disabled={!hasNext}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md disabled:bg-gray-200 disabled:text-gray-400 hover:bg-gray-400 disabled:hover:bg-gray-200 transition-colors"
+                >
+                  Next
+                </button>
               </div>
             )}
           </>
