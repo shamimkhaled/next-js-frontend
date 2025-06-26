@@ -1,4 +1,4 @@
-// app/checkout/page.js - Complete updated file
+// app/checkout/page.js - Australian version
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,6 +12,18 @@ import Head from 'next/head';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
+
+// Australian states and territories
+const AUSTRALIAN_STATES = [
+  { value: 'NSW', label: 'New South Wales' },
+  { value: 'VIC', label: 'Victoria' },
+  { value: 'QLD', label: 'Queensland' },
+  { value: 'WA', label: 'Western Australia' },
+  { value: 'SA', label: 'South Australia' },
+  { value: 'TAS', label: 'Tasmania' },
+  { value: 'ACT', label: 'Australian Capital Territory' },
+  { value: 'NT', label: 'Northern Territory' }
+];
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -27,16 +39,15 @@ export default function CheckoutPage() {
     delivery_address: {
       address_line_1: '',
       address_line_2: '',
-      city: '',
+      suburb: '', // Australian term for city/locality
       state: '',
-      postal_code: '',
-      country: 'US',
+      postcode: '', // Australian term for postal code
+      country: 'AU',
       contact_name: '',
       contact_phone: '',
     },
     delivery_instructions: '',
     special_instructions: '',
-    tip_amount: '0.00',
   });
 
   const [formErrors, setFormErrors] = useState({});
@@ -123,22 +134,26 @@ export default function CheckoutPage() {
     // Delivery address validation
     if (orderForm.order_type === 'delivery') {
       if (!orderForm.delivery_address.address_line_1) {
-        errors['delivery_address.address_line_1'] = 'Address is required';
+        errors['delivery_address.address_line_1'] = 'Street address is required';
       }
-      if (!orderForm.delivery_address.city) {
-        errors['delivery_address.city'] = 'City is required';
+      if (!orderForm.delivery_address.suburb) {
+        errors['delivery_address.suburb'] = 'Suburb is required';
       }
       if (!orderForm.delivery_address.state) {
-        errors['delivery_address.state'] = 'State is required';
+        errors['delivery_address.state'] = 'State/Territory is required';
       }
-      if (!orderForm.delivery_address.postal_code) {
-        errors['delivery_address.postal_code'] = 'Postal code is required';
+      if (!orderForm.delivery_address.postcode) {
+        errors['delivery_address.postcode'] = 'Postcode is required';
+      } else if (!/^\d{4}$/.test(orderForm.delivery_address.postcode)) {
+        errors['delivery_address.postcode'] = 'Postcode must be 4 digits';
       }
       if (!orderForm.delivery_address.contact_name) {
         errors['delivery_address.contact_name'] = 'Contact name is required';
       }
       if (!orderForm.delivery_address.contact_phone) {
         errors['delivery_address.contact_phone'] = 'Contact phone is required';
+      } else if (!/^(\+61|0)[2-9]\d{8}$/.test(orderForm.delivery_address.contact_phone.replace(/\s/g, ''))) {
+        errors['delivery_address.contact_phone'] = 'Please enter a valid Australian phone number';
       }
     }
     
@@ -162,8 +177,20 @@ export default function CheckoutPage() {
     try {
       addDebugLog('🚀 Starting order creation...', 'info');
       
+      // Map Australian address format to backend expected format
+      const backendOrderForm = {
+        ...orderForm,
+        delivery_address: {
+          ...orderForm.delivery_address,
+          city: orderForm.delivery_address.suburb, // Map suburb to city for backend
+          postal_code: orderForm.delivery_address.postcode, // Map postcode to postal_code for backend
+        }
+      };
+      
+      addDebugLog(`📍 Mapped address: suburb "${orderForm.delivery_address.suburb}" -> city "${backendOrderForm.delivery_address.city}"`, 'info');
+      
       // Step 1: Create order
-      const orderResponse = await createOrderFromCart(orderForm);
+      const orderResponse = await createOrderFromCart(backendOrderForm);
       
       if (!orderResponse) {
         throw new Error('Failed to create order - no response returned');
@@ -281,9 +308,8 @@ export default function CheckoutPage() {
   }
 
   const subtotal = getTotalPrice();
-  const deliveryFee = orderForm.order_type === 'delivery' ? 5.99 : 0;
-  const tipAmount = parseFloat(orderForm.tip_amount) || 0;
-  const total = subtotal + deliveryFee + tipAmount;
+  const deliveryFee = orderForm.order_type === 'delivery' ? 8.99 : 0; // Updated for Australian pricing
+  const total = subtotal + deliveryFee;
 
   return (
     <>
@@ -426,7 +452,7 @@ export default function CheckoutPage() {
                             value={orderForm.delivery_address.contact_phone}
                             onChange={handleInputChange}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-orange-500 focus:border-orange-500"
-                            placeholder="Your phone number"
+                            placeholder="0400 123 456"
                           />
                           {formErrors['delivery_address.contact_phone'] && (
                             <p className="text-red-600 text-sm mt-1">{formErrors['delivery_address.contact_phone']}</p>
@@ -445,7 +471,7 @@ export default function CheckoutPage() {
                           value={orderForm.delivery_address.address_line_1}
                           onChange={handleInputChange}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-orange-500 focus:border-orange-500"
-                          placeholder="123 Main Street"
+                          placeholder="123 Collins Street"
                         />
                         {formErrors['delivery_address.address_line_1'] && (
                           <p className="text-red-600 text-sm mt-1">{formErrors['delivery_address.address_line_1']}</p>
@@ -454,7 +480,7 @@ export default function CheckoutPage() {
 
                       <div>
                         <label htmlFor="address_line_2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Apartment, Suite, etc. (Optional)
+                          Unit/Apartment (Optional)
                         </label>
                         <input
                           type="text"
@@ -463,42 +489,47 @@ export default function CheckoutPage() {
                           value={orderForm.delivery_address.address_line_2}
                           onChange={handleInputChange}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-orange-500 focus:border-orange-500"
-                          placeholder="Apt 4B"
+                          placeholder="Unit 12, Apt 4B"
                         />
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label htmlFor="city" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            City *
+                          <label htmlFor="suburb" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Suburb *
                           </label>
                           <input
                             type="text"
-                            id="city"
-                            name="delivery_address.city"
-                            value={orderForm.delivery_address.city}
+                            id="suburb"
+                            name="delivery_address.suburb"
+                            value={orderForm.delivery_address.suburb}
                             onChange={handleInputChange}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-orange-500 focus:border-orange-500"
-                            placeholder="City"
+                            placeholder="Melbourne"
                           />
-                          {formErrors['delivery_address.city'] && (
-                            <p className="text-red-600 text-sm mt-1">{formErrors['delivery_address.city']}</p>
+                          {formErrors['delivery_address.suburb'] && (
+                            <p className="text-red-600 text-sm mt-1">{formErrors['delivery_address.suburb']}</p>
                           )}
                         </div>
 
                         <div>
                           <label htmlFor="state" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            State *
+                            State/Territory *
                           </label>
-                          <input
-                            type="text"
+                          <select
                             id="state"
                             name="delivery_address.state"
                             value={orderForm.delivery_address.state}
                             onChange={handleInputChange}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-orange-500 focus:border-orange-500"
-                            placeholder="State"
-                          />
+                          >
+                            <option value="">Select State/Territory</option>
+                            {AUSTRALIAN_STATES.map((state) => (
+                              <option key={state.value} value={state.value}>
+                                {state.label}
+                              </option>
+                            ))}
+                          </select>
                           {formErrors['delivery_address.state'] && (
                             <p className="text-red-600 text-sm mt-1">{formErrors['delivery_address.state']}</p>
                           )}
@@ -507,20 +538,21 @@ export default function CheckoutPage() {
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label htmlFor="postal_code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            ZIP Code *
+                          <label htmlFor="postcode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Postcode *
                           </label>
                           <input
                             type="text"
-                            id="postal_code"
-                            name="delivery_address.postal_code"
-                            value={orderForm.delivery_address.postal_code}
+                            id="postcode"
+                            name="delivery_address.postcode"
+                            value={orderForm.delivery_address.postcode}
                             onChange={handleInputChange}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-orange-500 focus:border-orange-500"
-                            placeholder="12345"
+                            placeholder="3000"
+                            maxLength="4"
                           />
-                          {formErrors['delivery_address.postal_code'] && (
-                            <p className="text-red-600 text-sm mt-1">{formErrors['delivery_address.postal_code']}</p>
+                          {formErrors['delivery_address.postcode'] && (
+                            <p className="text-red-600 text-sm mt-1">{formErrors['delivery_address.postcode']}</p>
                           )}
                         </div>
 
@@ -535,9 +567,7 @@ export default function CheckoutPage() {
                             onChange={handleInputChange}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-orange-500 focus:border-orange-500"
                           >
-                            <option value="US">United States</option>
-                            <option value="CA">Canada</option>
-                            <option value="UK">United Kingdom</option>
+                            <option value="AU">Australia</option>
                           </select>
                         </div>
                       </div>
@@ -553,7 +583,7 @@ export default function CheckoutPage() {
                           onChange={handleInputChange}
                           rows={3}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-orange-500 focus:border-orange-500"
-                          placeholder="e.g., Leave at front door, ring doorbell, etc."
+                          placeholder="e.g., Leave at front door, ring doorbell, buzzer number, etc."
                         />
                       </div>
                     </div>
@@ -574,45 +604,6 @@ export default function CheckoutPage() {
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-orange-500 focus:border-orange-500"
                     placeholder="Any special requests for your order..."
                   />
-                </div>
-
-                {/* Tip */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                    Add Tip (Optional)
-                  </h3>
-                  <div className="grid grid-cols-4 gap-4 mb-4">
-                    {['0.00', '2.00', '5.00', '10.00'].map((amount) => (
-                      <button
-                        key={amount}
-                        type="button"
-                        onClick={() => handleInputChange({ target: { name: 'tip_amount', value: amount } })}
-                        className={`p-3 rounded-lg border-2 transition-colors ${
-                          orderForm.tip_amount === amount
-                            ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20 text-orange-600'
-                            : 'border-gray-300 dark:border-gray-600 hover:border-orange-300'
-                        }`}
-                      >
-                        ${amount}
-                      </button>
-                    ))}
-                  </div>
-                  <div>
-                    <label htmlFor="custom_tip" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Custom Amount
-                    </label>
-                    <input
-                      type="number"
-                      id="custom_tip"
-                      name="tip_amount"
-                      value={orderForm.tip_amount}
-                      onChange={handleInputChange}
-                      min="0"
-                      step="0.01"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-orange-500 focus:border-orange-500"
-                      placeholder="0.00"
-                    />
-                  </div>
                 </div>
               </form>
             </div>
@@ -653,13 +644,6 @@ export default function CheckoutPage() {
                     <div className="flex justify-between">
                       <span className="text-gray-600 dark:text-gray-400">Delivery Fee</span>
                       <span className="text-gray-900 dark:text-white">${deliveryFee.toFixed(2)}</span>
-                    </div>
-                  )}
-                  
-                  {tipAmount > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Tip</span>
-                      <span className="text-gray-900 dark:text-white">${tipAmount.toFixed(2)}</span>
                     </div>
                   )}
                   
