@@ -231,20 +231,7 @@ const FloatingCartIcon = () => {
               </div>
 
               {/* Debug Status */}
-              <div className="p-2 bg-green-50 dark:bg-green-900 text-xs">
-                <div className="font-semibold text-green-800 dark:text-green-200">
-                  FIXED: Cart preserved during redirect
-                </div>
-                <div className="text-green-600 dark:text-green-300">
-                  Cart: {cart?.length || 0} | Auth: {isAuthenticated ? 'Yes' : 'No'} | Redirecting: {isRedirecting ? 'Yes' : 'No'}
-                </div>
-                <button 
-                  onClick={testRedirect}
-                  className="mt-1 text-xs bg-green-200 hover:bg-green-300 text-green-800 px-2 py-1 rounded"
-                >
-                  Test Direct Redirect (Preserve Cart)
-                </button>
-              </div>
+             
 
               {/* Cart Items - Same as before */}
               <div className="flex-1 overflow-y-auto p-4">
@@ -343,38 +330,11 @@ const FloatingCartIcon = () => {
                   {/* CHECKOUT OPTIONS */}
                   <div className="space-y-3">
                     <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 text-center border-b border-gray-200 dark:border-gray-600 pb-2">
-                      Checkout Options (Cart Preserved)
+                     
                     </h4>
 
                     {/* OPTION 1: Quick Checkout (API Only) */}
-                    <button 
-                      onClick={handleQuickCheckout}
-                      disabled={isProcessing || cart.length === 0}
-                      className={`
-                        w-full py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center
-                        ${isProcessing 
-                          ? 'bg-yellow-500 text-black cursor-not-allowed' 
-                          : 'bg-orange-600 hover:bg-orange-700 text-white shadow-lg hover:shadow-xl'
-                        }
-                      `}
-                    >
-                      {isProcessing ? (
-                        <>
-                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Processing... ({processedItems.length}/{cart.length})
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                          </svg>
-                          Quick Add to Cart (Clears Cart)
-                        </>
-                      )}
-                    </button>
+                   
 
                     {/* OPTION 2: Full Checkout */}
                     <button 
@@ -409,22 +369,13 @@ const FloatingCartIcon = () => {
                           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                           </svg>
-                          API → Checkout (Keep Cart)
+                          Checkout 
                         </>
                       )}
                     </button>
 
                     {/* OPTION 3: Guest Checkout */}
-                    <button 
-                      onClick={handleGuestCheckout}
-                      disabled={isProcessing || isRedirecting || cart.length === 0}
-                      className="w-full py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center bg-gray-600 hover:bg-gray-700 text-white shadow-md hover:shadow-lg disabled:opacity-50"
-                    >
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 8h6M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      Guest: API → Checkout (Keep Cart)
-                    </button>
+                   
 
                     {/* Progress Bar */}
                     {(isProcessing || isRedirecting) && (
@@ -449,15 +400,7 @@ const FloatingCartIcon = () => {
 
                   {/* Additional Options */}
                   <div className="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-600">
-                    <button
-                      onClick={() => {
-                        router.push('/cart');
-                        setIsOpen(false);
-                      }}
-                      className="w-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-white py-2 rounded-lg font-medium transition-colors"
-                    >
-                      View Full Cart
-                    </button>
+                   
 
                     <button
                       onClick={clearCart}

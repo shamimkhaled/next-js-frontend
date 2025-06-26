@@ -656,13 +656,7 @@ export default function ProductDetail() {
                  'Add to Cart'}
               </button>
               
-              <button
-                onClick={handleBuyNow}
-                disabled={!canAddToCart || cartLoading}
-                className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 py-3 px-6 rounded-lg font-medium hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-              >
-                Buy Now
-              </button>
+             
             </div>
           </div>
         </div>
