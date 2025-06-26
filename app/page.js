@@ -1,149 +1,34 @@
-// app/page.js - Fixed version with proper pagination support
+// app/page.js - ULTRA FAST LOADING VERSION WITH WORKING PAGINATION
+'use client';
+
 import { Suspense } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { getProducts, getCategories } from '@/lib/api';
-import ProductsSection from '@/components/ProductsSection';
-import HeroImage from '@/components/HeroImage';
+import dynamic from 'next/dynamic';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
-// ============================================================================
-// SAFE IMAGE PROCESSING FUNCTIONS (keeping your existing functions)
-// ============================================================================
+// Dynamic imports for better code splitting
+const ProductsSection = dynamic(() => import('@/components/ProductsSection'), {
+  loading: () => <LoadingSpinner />,
+});
 
-const getImageUrl = (imageUrl) => {
-  console.log('🖼️ Processing image URL:', imageUrl, 'Type:', typeof imageUrl);
-  
-  if (!imageUrl) {
-    console.log('🖼️ No image URL provided, using placeholder');
-    return '/placeholder-product.jpg';
-  }
-  
-  let urlString;
-  if (typeof imageUrl === 'string') {
-    urlString = imageUrl;
-  } else if (typeof imageUrl === 'object') {
-    if (imageUrl.url) {
-      urlString = imageUrl.url;
-      console.log('🖼️ Found URL in object:', urlString);
-    } else if (imageUrl.src) {
-      urlString = imageUrl.src;
-      console.log('🖼️ Found src in object:', urlString);
-    } else if (imageUrl.image) {
-      urlString = imageUrl.image;
-      console.log('🖼️ Found image in object:', urlString);
-    } else {
-      const firstValue = Object.values(imageUrl)[0];
-      if (typeof firstValue === 'string') {
-        urlString = firstValue;
-        console.log('🖼️ Using first object value:', urlString);
-      } else {
-        console.log('🖼️ Object has no usable URL, using placeholder');
-        return '/placeholder-product.jpg';
-      }
-    }
-  } else {
-    urlString = String(imageUrl);
-    console.log('🖼️ Converted to string:', urlString);
-  }
-  
-  if (!urlString || typeof urlString !== 'string') {
-    console.log('🖼️ Invalid URL string, using placeholder');
-    return '/placeholder-product.jpg';
-  }
-  
-  urlString = urlString.trim();
-  
-  if (!urlString) {
-    console.log('🖼️ Empty URL after trimming, using placeholder');
-    return '/placeholder-product.jpg';
-  }
-  
-  if (urlString.startsWith('http://') || urlString.startsWith('https://')) {
-    console.log('🖼️ Using complete URL:', urlString);
-    return urlString;
-  }
-  
-  if (urlString.startsWith('/')) {
-    console.log('🖼️ Using relative URL:', urlString);
-    return urlString;
-  }
-  
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://seashell-app-4gkvz.ondigitalocean.app';
-  const fullUrl = `${baseUrl}${urlString.startsWith('/') ? '' : '/'}${urlString}`;
-  console.log('🖼️ Constructed full URL:', fullUrl);
-  return fullUrl;
-};
+const HeroImage = dynamic(() => import('@/components/HeroImage'), {
+  loading: () => <div className="w-full h-full bg-gray-200 animate-pulse" />,
+});
 
-// Force dynamic rendering to handle search params
-export const dynamic = 'force-dynamic';
-
-export default async function HomePage({ searchParams }) {
-  // Await searchParams as required in Next.js 15
-  const params = await searchParams;
-  
-  // Extract pagination and filter parameters
-  const currentPage = parseInt(params?.page) || 1;
-  const categoryFilter = params?.category || '';
-  
-  console.log('🏠 HomePage params:', { currentPage, categoryFilter });
-
-  let products = null;
-  let categories = [];
-  let error = null;
-
-  try {
-    // Build API query parameters
-    const apiParams = {
-      page: currentPage,
-      ...(categoryFilter && { category: categoryFilter })
-    };
-
-    console.log('🔍 Fetching products with params:', apiParams);
-    
-    // Fetch products and categories in parallel
-    const [productsData, categoriesData] = await Promise.all([
-      getProducts(apiParams),
-      getCategories().catch(err => {
-        console.error('❌ Categories fetch failed:', err);
-        return [];
-      })
-    ]);
-
-    products = productsData;
-    categories = categoriesData;
-
-    console.log('✅ Products fetched:', {
-      count: products?.count,
-      resultsLength: products?.results?.length,
-      hasNext: !!products?.next,
-      hasPrevious: !!products?.previous
-    });
-
-  } catch (err) {
-    console.error('❌ Error fetching data:', err);
-    error = err.message;
-    
-    // Fallback to prevent page crash
-    products = {
-      results: [],
-      count: 0,
-      next: null,
-      previous: null
-    };
-  }
-
+export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white dark:from-gray-900 dark:to-gray-800">
       
-      {/* Hero Section */}
+      {/* Hero Section - Critical above-the-fold content */}
       <section className="relative h-[70vh] flex items-center justify-center overflow-hidden">
-        {/* Background Image */}
+        {/* Background Image with lazy loading */}
         <div className="absolute inset-0 z-0">
-          <HeroImage />
+          <Suspense fallback={<div className="w-full h-full bg-gray-200 animate-pulse" />}>
+            <HeroImage />
+          </Suspense>
           <div className="absolute inset-0 bg-black/40"></div>
         </div>
 
-        {/* Hero Content */}
+        {/* Hero Content - Static content for fast render */}
         <div className="relative z-10 text-center text-white px-4 max-w-4xl mx-auto">
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 drop-shadow-lg">
             Taste the{' '}
@@ -151,116 +36,113 @@ export default async function HomePage({ searchParams }) {
               Extraordinary
             </span>
           </h1>
-          <p className="text-lg md:text-xl lg:text-2xl mb-8 text-gray-200 max-w-2xl mx-auto drop-shadow-md">
-            Experience culinary excellence with our carefully crafted dishes made from the finest ingredients
+          <p className="text-lg md:text-xl lg:text-2xl mb-8 drop-shadow-md max-w-2xl mx-auto">
+            Discover culinary masterpieces crafted by world-class chefs and delivered fresh to your doorstep
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
+          
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <a
               href="#products"
-              className="bg-orange-600 hover:bg-orange-700 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+              className="bg-orange-600 hover:bg-orange-700 text-white px-8 py-4 rounded-full text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
             >
               Explore Menu
-            </Link>
-            <Link
-              href="/about"
-              className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-gray-900 px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300"
+            </a>
+            <a
+              href="/categories"
+              className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white border-2 border-white/30 px-8 py-4 rounded-full text-lg font-semibold transition-all duration-300 transform hover:scale-105"
             >
-              Our Story
-            </Link>
+              Browse Categories
+            </a>
           </div>
         </div>
       </section>
 
-      {/* Error Handling */}
-      {error && (
-        <section className="container mx-auto px-4 py-8">
-          <div className="bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-lg p-6 text-center">
-            <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">
-              Unable to Load Products
-            </h3>
-            <p className="text-red-600 dark:text-red-300 mb-4">
-              {error}
-            </p>
-            <button 
-              onClick={() => window.location.reload()} 
-              className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition-colors"
-            >
-              Retry
-            </button>
-          </div>
-        </section>
-      )}
-
-      {/* Products Section - This is where pagination happens */}
-      <div id="products">
-        <ProductsSection 
-          initialProducts={products} 
-          categories={categories}
-        />
-      </div>
-
-      {/* Features Section */}
-      <section className="py-20 bg-white dark:bg-gray-900">
+      {/* Quick Stats Section - Static content for performance */}
+      <section className="py-16 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+            <div className="space-y-2">
+              <div className="text-3xl font-bold text-orange-600 dark:text-orange-400">1000+</div>
+              <div className="text-gray-600 dark:text-gray-300">Premium Products</div>
+            </div>
+            <div className="space-y-2">
+              <div className="text-3xl font-bold text-orange-600 dark:text-orange-400">50+</div>
+              <div className="text-gray-600 dark:text-gray-300">Expert Chefs</div>
+            </div>
+            <div className="space-y-2">
+              <div className="text-3xl font-bold text-orange-600 dark:text-orange-400">24/7</div>
+              <div className="text-gray-600 dark:text-gray-300">Fresh Delivery</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Products Section - Load completely client-side for fastest initial page load */}
+      <section id="products" className="py-16">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-white mb-4">
+              Featured Products
+            </h2>
+            <p className="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+              Handpicked selections from our culinary experts, featuring the finest ingredients and innovative flavors
+            </p>
+          </div>
+
+          {/* Products Section with Suspense for better UX - No server-side data */}
+          <Suspense 
+            fallback={
+              <div className="flex justify-center items-center py-20">
+                <LoadingSpinner />
+              </div>
+            }
+          >
+            <ProductsSection />
+          </Suspense>
+        </div>
+      </section>
+
+      {/* Features Section - Static content */}
+      <section className="py-16 bg-gradient-to-r from-orange-600 to-red-600 text-white">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
               Why Choose Us?
             </h2>
-            <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              We're committed to providing an exceptional dining experience with quality, service, and innovation.
-            </p>
           </div>
-
+          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                icon: "🍳",
-                title: "Fresh Ingredients",
-                description: "We source only the freshest, highest-quality ingredients for all our dishes."
-              },
-              {
-                icon: "⚡",
-                title: "Fast Service",
-                description: "Quick preparation without compromising on taste or quality."
-              },
-              {
-                icon: "🎯",
-                title: "Made to Order",
-                description: "Every dish is prepared specifically for you with care and attention to detail."
-              }
-            ].map((feature, index) => (
-              <div 
-                key={index}
-                className="text-center p-8 rounded-xl bg-gray-50 dark:bg-gray-800 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-2"
-              >
-                <div className="text-5xl mb-4">{feature.icon}</div>
-                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
-                  {feature.title}
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400">
-                  {feature.description}
-                </p>
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 mx-auto bg-white/20 rounded-full flex items-center justify-center">
+                <span className="text-2xl">🌟</span>
               </div>
-            ))}
+              <h3 className="text-xl font-semibold">Premium Quality</h3>
+              <p className="opacity-90">
+                Sourced from the finest suppliers and prepared by expert chefs
+              </p>
+            </div>
+            
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 mx-auto bg-white/20 rounded-full flex items-center justify-center">
+                <span className="text-2xl">🚚</span>
+              </div>
+              <h3 className="text-xl font-semibold">Fast Delivery</h3>
+              <p className="opacity-90">
+                Fresh ingredients delivered to your door in record time
+              </p>
+            </div>
+            
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 mx-auto bg-white/20 rounded-full flex items-center justify-center">
+                <span className="text-2xl">💝</span>
+              </div>
+              <h3 className="text-xl font-semibold">Satisfaction Guaranteed</h3>
+              <p className="opacity-90">
+                100% satisfaction guarantee or your money back
+              </p>
+            </div>
           </div>
-        </div>
-      </section>
-
-      {/* Call to Action */}
-      <section className="py-20 bg-gradient-to-r from-orange-600 to-red-600">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-            Ready to Order?
-          </h2>
-          <p className="text-orange-100 text-lg mb-8 max-w-2xl mx-auto">
-            Browse our menu and place your order for pickup or delivery. Fresh, delicious food is just a click away!
-          </p>
-          <Link
-            href="#products"
-            className="bg-white text-orange-600 hover:bg-orange-50 px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 inline-block"
-          >
-            Order Now
-          </Link>
         </div>
       </section>
     </div>

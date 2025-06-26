@@ -1,14 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Remove experimental.optimizeCss as it's causing the critters error
-  experimental: {
-    // Remove optimizeCss to fix the build error
-  },
-
   // Performance optimizations
   compress: true,
   poweredByHeader: false,
+  
+  // Enable static optimization
+  trailingSlash: false,
 
+  // Image optimizations
   images: {
     remotePatterns: [
       {
@@ -36,39 +35,11 @@ const nextConfig = {
         pathname: '/**',
       },
     ],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     formats: ['image/webp', 'image/avif'],
-    minimumCacheTTL: 60,
+    minimumCacheTTL: 3600,
   },
 
-  // Webpack optimizations
-  webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
-    // Client-side optimizations
-    if (!isServer) {
-      config.resolve.fallback = {
-        fs: false,
-        path: false,
-        os: false,
-      };
-    }
-
-    // Production optimizations
-    if (!dev) {
-      config.optimization = {
-        ...config.optimization,
-        sideEffects: false,
-        usedExports: true,
-      };
-    }
-
-    return config;
-  },
-
-  // Static optimization
-  trailingSlash: false,
-  
-  // Security headers
+  // Performance headers
   async headers() {
     return [
       {
@@ -83,8 +54,8 @@ const nextConfig = {
             value: 'DENY',
           },
           {
-            key: 'X-XSS-Protection',
-            value: '1; mode=block',
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
           },
         ],
       },
