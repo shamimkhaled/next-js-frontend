@@ -1,15 +1,19 @@
-// app/page.js - Simple Home Page with Hero Banner
+// app/page.js - Simple Home Page with Optimized Banner
 'use client';
 
 import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
 
-// Simple loading component
+// Loading components
 const BannerLoading = () => (
   <div className="w-full h-96 bg-gradient-to-r from-orange-600 to-red-600 flex items-center justify-center">
     <div className="text-center text-white">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-      <p className="text-lg">Loading...</p>
+      <h1 className="text-4xl md:text-6xl font-bold mb-4">
+        🍽️ Welcome to Our Restaurant
+      </h1>
+      <p className="text-xl md:text-2xl mb-8">
+        Delicious food delivered fresh to your door
+      </p>
     </div>
   </div>
 );
@@ -33,7 +37,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white dark:from-gray-900 dark:to-gray-800">
       
-      {/* Hero Banner Section */}
+      {/* Hero Banner Section - Optimized with Caching */}
       <Suspense fallback={<BannerLoading />}>
         <HeroBanner />
       </Suspense>

@@ -4,11 +4,9 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 
-// Helper function to process image URL (same as working version)
+// Helper function to process image URL
 const getImageUrl = (imageInput) => {
-  if (!imageInput) {
-    return null;
-  }
+  if (!imageInput) return null;
   
   let urlString;
   try {
@@ -16,43 +14,65 @@ const getImageUrl = (imageInput) => {
       urlString = imageInput;
     } else if (typeof imageInput === 'object') {
       urlString = imageInput.url || imageInput.src || imageInput.image || imageInput.file;
-      if (!urlString) {
-        const stringified = String(imageInput);
-        if (stringified !== '[object Object]') {
-          urlString = stringified;
-        }
-      }
     } else {
       urlString = String(imageInput);
     }
   } catch (error) {
-    console.error('🖼️ Error converting image to string:', error);
     return null;
   }
   
-  if (!urlString || typeof urlString !== 'string') {
-    return null;
-  }
+  if (!urlString || typeof urlString !== 'string') return null;
   
   urlString = urlString.trim();
+  if (!urlString) return null;
   
-  if (!urlString) {
-    return null;
-  }
-  
-  // If it's already a full URL, return as is
   if (urlString.startsWith('http://') || urlString.startsWith('https://')) {
     return urlString;
   }
   
-  // If it starts with /, add base URL
   if (urlString.startsWith('/')) {
     return `https://seashell-app-4gkvz.ondigitalocean.app${urlString}`;
   }
   
-  // Otherwise, construct full URL
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://seashell-app-4gkvz.ondigitalocean.app';
-  return `${baseUrl}/${urlString}`;
+  return `https://seashell-app-4gkvz.ondigitalocean.app/${urlString}`;
+};
+
+// Cache management
+const CACHE_KEY = 'hero-banner-cache';
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+const getCachedBanner = () => {
+  if (typeof window === 'undefined') return null;
+  
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+    
+    const { data, timestamp } = JSON.parse(cached);
+    if (Date.now() - timestamp < CACHE_DURATION) {
+      return data;
+    }
+    
+    // Remove expired cache
+    localStorage.removeItem(CACHE_KEY);
+    return null;
+  } catch (error) {
+    localStorage.removeItem(CACHE_KEY);
+    return null;
+  }
+};
+
+const setCachedBanner = (banner) => {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      data: banner,
+      timestamp: Date.now()
+    }));
+  } catch (error) {
+    // Ignore localStorage errors
+  }
 };
 
 export default function HeroBanner() {
@@ -60,58 +80,75 @@ export default function HeroBanner() {
   const [loading, setLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
 
-  // Fetch the single hero banner
   useEffect(() => {
-    async function fetchHeroBanner() {
-      try {
-        setLoading(true);
-        
-        console.log('🎯 Fetching hero banner...');
-        const response = await fetch('https://seashell-app-4gkvz.ondigitalocean.app/api/banners/');
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch banners: ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log('📋 Banner API response:', data);
-        
-        // Get the first active banner (highest priority by order)
-        const activeBanners = (data.results || [])
-          .filter(banner => banner.is_active)
-          .sort((a, b) => a.order - b.order);
-        
-        console.log('🔍 Active banners found:', activeBanners.length);
-        
-        if (activeBanners.length > 0) {
-          const selectedBanner = activeBanners[0];
-          console.log('✅ Selected banner:', selectedBanner);
-          console.log('🖼️ Banner image field:', selectedBanner.image);
-          setBanner(selectedBanner);
-        } else {
-          console.log('⚠️ No active banners found');
-        }
-      } catch (error) {
-        console.error('❌ Error fetching banner:', error);
-      } finally {
-        setLoading(false);
-      }
+    // Check cache first
+    const cached = getCachedBanner();
+    if (cached) {
+      setBanner(cached);
+      setLoading(false);
+      console.log('✅ Using cached banner:', cached.id);
+      return;
     }
 
+    // Fetch from API if no cache
     fetchHeroBanner();
   }, []);
+
+  const fetchHeroBanner = async () => {
+    try {
+      setLoading(true);
+      
+      console.log('🎯 Fetching hero banner from API...');
+      const response = await fetch('https://seashell-app-4gkvz.ondigitalocean.app/api/banners/');
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch banners: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Get the first active banner
+      const activeBanners = (data.results || [])
+        .filter(banner => banner.is_active)
+        .sort((a, b) => a.order - b.order);
+      
+      if (activeBanners.length > 0) {
+        const selectedBanner = activeBanners[0];
+        setBanner(selectedBanner);
+        setCachedBanner(selectedBanner); // Cache the result
+        console.log('✅ Hero banner loaded and cached:', selectedBanner.id);
+      } else {
+        console.log('⚠️ No active banners found');
+      }
+    } catch (error) {
+      console.error('❌ Error fetching banner:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleImageError = () => {
     console.error('❌ Hero image failed to load');
     setImageError(true);
   };
 
-  if (loading) {
+  // Show minimal loading for better UX
+  if (loading && !banner) {
     return (
       <section className="relative w-full h-96 bg-gradient-to-r from-orange-600 to-red-600 flex items-center justify-center">
         <div className="text-center text-white">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-lg">Loading banner...</p>
+          <h1 className="text-4xl md:text-6xl font-bold mb-4">
+            🍽️ Welcome to Our Restaurant
+          </h1>
+          <p className="text-xl md:text-2xl mb-8">
+            Delicious food delivered fresh to your door
+          </p>
+          <Link
+            href="#products"
+            className="inline-block bg-white text-orange-600 px-8 py-3 rounded-full font-semibold text-lg hover:bg-gray-100 transition-colors shadow-lg"
+          >
+            Order Now
+          </Link>
         </div>
       </section>
     );
@@ -124,9 +161,6 @@ export default function HeroBanner() {
   const heroLink = banner?.link || '#products';
   const imageUrl = banner ? getImageUrl(banner.image) : null;
   const shouldShowImage = imageUrl && !imageError;
-
-  console.log('🖼️ Processed image URL:', imageUrl);
-  console.log('🖼️ Should show image:', shouldShowImage);
 
   return (
     <section className="relative w-full h-96 md:h-[500px] overflow-hidden">
@@ -143,7 +177,6 @@ export default function HeroBanner() {
             onError={handleImageError}
             onLoad={() => console.log('✅ Hero image loaded successfully')}
           />
-          {/* Dark overlay for better text readability */}
           <div className="absolute inset-0 bg-black bg-opacity-40"></div>
         </div>
       ) : (
@@ -172,15 +205,13 @@ export default function HeroBanner() {
         </div>
       </div>
 
-      {/* Debug Info (Development Only) */}
+      {/* Cache Status Indicator (Development Only) */}
       {process.env.NODE_ENV === 'development' && (
-        <div className="absolute top-4 right-4 bg-black bg-opacity-75 text-white p-2 rounded text-xs max-w-xs">
-          <div><strong>Hero Banner Debug:</strong></div>
-          <div>Banner ID: {banner?.id || 'No banner'}</div>
-          <div>Raw Image: {banner?.image || 'No image'}</div>
-          <div>Processed URL: {imageUrl || 'No URL'}</div>
-          <div>Image Error: {imageError ? 'Yes' : 'No'}</div>
-          <div>Should Show: {shouldShowImage ? 'Yes' : 'No'}</div>
+        <div className="absolute top-4 right-4 bg-black bg-opacity-75 text-white p-2 rounded text-xs">
+          <div>Status: {loading ? 'Loading' : 'Loaded'}</div>
+          <div>Source: {getCachedBanner() ? 'Cache' : 'API'}</div>
+          <div>Banner: {banner ? `ID ${banner.id}` : 'None'}</div>
+          <div>Image: {shouldShowImage ? 'Yes' : 'No'}</div>
         </div>
       )}
     </section>
